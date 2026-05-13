@@ -17,7 +17,14 @@ export interface NativeFetchNetworkOptions {
 }
 
 export async function configureNativeFetchNetworking(options: NativeFetchNetworkOptions = {}): Promise<void> {
-  const interfaces = options.interfaces ?? networkInterfaces();
+  let interfaces: ReturnType<typeof networkInterfaces>;
+
+  try {
+    interfaces = options.interfaces ?? networkInterfaces();
+  } catch {
+    configureIpv4Fallback(options);
+    return;
+  }
 
   if (!hasGlobalIpv6Address(interfaces)) {
     configureIpv4Fallback(options);

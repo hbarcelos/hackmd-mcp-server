@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type * as NodeOs from "node:os";
+
 import { configureNativeFetchNetworking, hasGlobalIpv6Address } from "../src/network.js";
 
 describe("hasGlobalIpv6Address", () => {
@@ -22,6 +24,29 @@ describe("hasGlobalIpv6Address", () => {
 });
 
 describe("configureNativeFetchNetworking", () => {
+  it("falls back to IPv4 when network interfaces cannot be enumerated", async () => {
+    vi.resetModules();
+    vi.doMock("node:os", async (importOriginal) => ({
+      ...(await importOriginal<typeof NodeOs>()),
+      networkInterfaces: () => {
+        throw new Error("network interfaces unavailable");
+      },
+    }));
+    const { configureNativeFetchNetworking: configureWithUnavailableInterfaces } = await import("../src/network.js");
+    const setDefaultAutoSelectFamily = vi.fn();
+    const setDefaultResultOrder = vi.fn();
+
+    await configureWithUnavailableInterfaces({
+      setDefaultResultOrder,
+      setDefaultAutoSelectFamily,
+    });
+
+    expect(setDefaultAutoSelectFamily).toHaveBeenCalledWith(false);
+    expect(setDefaultResultOrder).toHaveBeenCalledWith("ipv4first");
+
+    vi.doUnmock("node:os");
+  });
+
   it("disables address family autoselection when no public IPv6 address exists", async () => {
     const setDefaultAutoSelectFamily = vi.fn();
     const setDefaultResultOrder = vi.fn();
