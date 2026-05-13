@@ -1,19 +1,20 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { HackMdClient } from "./hackmd/client.js";
 import {
   createNoteSchema,
   getNoteSchema,
   listNotesSchema,
   profileSchema,
   toolHandlers,
-  updateNoteSchema
+  updateNoteSchema,
 } from "./tools/notes.js";
+
+import type { HackMdClient } from "./hackmd/client.js";
 
 export function createServer(client: HackMdClient): McpServer {
   const server = new McpServer({
     name: "hackmd-mcp",
-    version: "0.1.0"
+    version: "0.1.0",
   });
   const handlers = toolHandlers(client);
 
@@ -22,9 +23,9 @@ export function createServer(client: HackMdClient): McpServer {
     {
       title: "HackMD Profile",
       description: "Get the current HackMD user's profile.",
-      inputSchema: profileSchema.shape
+      inputSchema: profileSchema.shape,
     },
-    handlers.hackmdProfile
+    handlers.hackmdProfile,
   );
 
   server.registerTool(
@@ -32,9 +33,9 @@ export function createServer(client: HackMdClient): McpServer {
     {
       title: "List HackMD Notes",
       description: "List personal HackMD notes, or team notes when teamPath is provided.",
-      inputSchema: listNotesSchema.shape
+      inputSchema: listNotesSchema.shape,
     },
-    handlers.hackmdListNotes
+    handlers.hackmdListNotes,
   );
 
   server.registerTool(
@@ -42,9 +43,9 @@ export function createServer(client: HackMdClient): McpServer {
     {
       title: "Get HackMD Note",
       description: "Read one HackMD note by noteId, optionally from a team workspace.",
-      inputSchema: getNoteSchema.shape
+      inputSchema: getNoteSchema.shape,
     },
-    handlers.hackmdGetNote
+    handlers.hackmdGetNote,
   );
 
   server.registerTool(
@@ -52,9 +53,9 @@ export function createServer(client: HackMdClient): McpServer {
     {
       title: "Create HackMD Note",
       description: "Create a personal HackMD note, or a team note when teamPath is provided.",
-      inputSchema: createNoteSchema.shape
+      inputSchema: createNoteSchema.shape,
     },
-    handlers.hackmdCreateNote
+    handlers.hackmdCreateNote,
   );
 
   server.registerTool(
@@ -62,10 +63,22 @@ export function createServer(client: HackMdClient): McpServer {
     {
       title: "Update HackMD Note",
       description: "Update HackMD note content or metadata.",
-      inputSchema: updateNoteSchema.shape
+      inputSchema: updateNoteSchema,
     },
-    handlers.hackmdUpdateNote
+    handlers.hackmdUpdateNote,
   );
 
   return server;
 }
+
+export { HackMdClient, HackMdHttpError, HackMdNetworkError } from "./hackmd/client.js";
+export type {
+  CommentPermissionType,
+  CreateNoteInput,
+  HackMdClientOptions,
+  ListNotesInput,
+  NotePermissionRole,
+  NoteSelector,
+  SuggestEditPermissionType,
+  UpdateNoteInput,
+} from "./hackmd/client.js";

@@ -7,17 +7,17 @@ describe("loadConfig", () => {
     expect(() => loadConfig({})).toThrow("HACKMD_API_TOKEN is required");
   });
 
-  it("can defer the missing token error for MCP startup", () => {
+  it("can defer the missing token error for library callers", () => {
     expect(loadConfig({}, { requireApiToken: false })).toEqual({
       apiToken: undefined,
-      apiUrl: "https://api.hackmd.io/v1"
+      apiUrl: "https://api.hackmd.io/v1",
     });
   });
 
   it("uses the default HackMD API URL", () => {
     expect(loadConfig({ HACKMD_API_TOKEN: "token" })).toEqual({
       apiToken: "token",
-      apiUrl: "https://api.hackmd.io/v1"
+      apiUrl: "https://api.hackmd.io/v1",
     });
   });
 
@@ -25,11 +25,11 @@ describe("loadConfig", () => {
     expect(
       loadConfig({
         HACKMD_API_TOKEN: "token",
-        HACKMD_API_URL: "https://example.test/v1/"
-      })
+        HACKMD_API_URL: "https://example.test/v1/",
+      }),
     ).toEqual({
       apiToken: "token",
-      apiUrl: "https://example.test/v1"
+      apiUrl: "https://example.test/v1",
     });
   });
 });

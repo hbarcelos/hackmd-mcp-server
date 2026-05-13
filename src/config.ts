@@ -9,10 +9,7 @@ export interface LoadConfigOptions {
   requireApiToken?: boolean;
 }
 
-export function loadConfig(
-  env: NodeJS.ProcessEnv = process.env,
-  options: LoadConfigOptions = {}
-): HackMdConfig {
+export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: LoadConfigOptions = {}): HackMdConfig {
   const requireApiToken = options.requireApiToken ?? true;
   const apiToken = env.HACKMD_API_TOKEN?.trim();
 
@@ -22,7 +19,7 @@ export function loadConfig(
 
   return {
     apiToken,
-    apiUrl: stripTrailingSlash(env.HACKMD_API_URL?.trim() || DEFAULT_API_URL)
+    apiUrl: stripTrailingSlash(env.HACKMD_API_URL?.trim() || DEFAULT_API_URL),
   };
 }
 

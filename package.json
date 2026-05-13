@@ -32,15 +32,20 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "npm run clean && tsc -p tsconfig.json && node scripts/add-bin-shebang.js",
+    "build": "npm run clean && tsc -p tsconfig.build.json && node scripts/add-bin-shebang.js",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "dev": "tsx src/cli.ts",
     "dev:cli": "tsx src/cli.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "prepack": "npm run build",
-    "prepublishOnly": "npm test",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test",
     "pack:dry-run": "npm pack --dry-run",
     "start": "node dist/cli.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "publishConfig": {
     "access": "public"
@@ -50,9 +55,15 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
+    "eslint": "^10.3.0",
+    "eslint-plugin-n": "^18.0.1",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.59.3",
     "vitest": "^3.2.4"
   },
   "engines": {

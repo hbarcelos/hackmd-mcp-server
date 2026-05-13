@@ -59,19 +59,19 @@ HACKMD_API_TOKEN=your-token hackmd-mcp
 
 Optional environment variables:
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `HACKMD_API_TOKEN` | Yes | none | HackMD API token used for all requests. |
-| `HACKMD_API_URL` | No | `https://api.hackmd.io/v1` | Override only for testing or custom HackMD-compatible deployments. |
+| Variable           | Required | Default                    | Description                                                        |
+| ------------------ | -------- | -------------------------- | ------------------------------------------------------------------ |
+| `HACKMD_API_TOKEN` | Yes      | none                       | HackMD API token used for all requests.                            |
+| `HACKMD_API_URL`   | No       | `https://api.hackmd.io/v1` | Override only for testing or custom HackMD-compatible deployments. |
 
 ## Tools
 
-| Tool | Purpose |
-| --- | --- |
-| `hackmd_profile` | Get the current HackMD user profile. |
-| `hackmd_list_notes` | List personal notes, or team notes when `teamPath` is provided. |
-| `hackmd_get_note` | Read one note by `noteId`. |
-| `hackmd_create_note` | Create a personal or team note. |
+| Tool                 | Purpose                                                              |
+| -------------------- | -------------------------------------------------------------------- |
+| `hackmd_profile`     | Get the current HackMD user profile.                                 |
+| `hackmd_list_notes`  | List personal notes, or team notes when `teamPath` is provided.      |
+| `hackmd_get_note`    | Read one note by `noteId`.                                           |
+| `hackmd_create_note` | Create a personal or team note.                                      |
 | `hackmd_update_note` | Update note content, title, tags, permissions, folder, or permalink. |
 
 Common inputs:
@@ -249,6 +249,8 @@ This package follows semver and starts at `0.1.0`.
 Before publishing:
 
 ```bash
+npm run lint
+npm run typecheck
 npm test
 npm run build
 npm pack --dry-run
@@ -326,9 +328,13 @@ List notes in the HackMD team workspace "my-team".
 
 ```bash
 npm install
+npm run lint
 npm test
+npm run typecheck
 npm run build
 ```
+
+This project uses ESLint for semantic checks and Prettier for formatting. Editor integrations should run both the TypeScript language server and ESLint language server; ESLint is intentionally not configured with formatting rules, so it can report code-quality issues without fighting Prettier.
 
 Run in development mode:
 

@@ -1,40 +1,33 @@
 import { z } from "zod";
 
-import type {
-  CreateNoteInput,
-  HackMdClient,
-  ListNotesInput,
-  NoteSelector,
-  UpdateNoteInput
-} from "../hackmd/client.js";
+import type { CreateNoteInput, HackMdClient, ListNotesInput, NoteSelector, UpdateNoteInput } from "../hackmd/client.js";
 
 const notePermissionRoleSchema = z.enum(["owner", "signed_in", "guest"]);
-const commentPermissionSchema = z.enum([
-  "disabled",
-  "forbidden",
-  "owners",
-  "signed_in_users",
-  "everyone"
-]);
-const suggestEditPermissionSchema = z.enum([
-  "disabled",
-  "forbidden",
-  "owners",
-  "signed_in_users"
-]);
+const commentPermissionSchema = z.enum(["disabled", "forbidden", "owners", "signed_in_users", "everyone"]);
+const suggestEditPermissionSchema = z.enum(["disabled", "forbidden", "owners", "signed_in_users"]);
+const updateNoteFields = [
+  "title",
+  "content",
+  "tags",
+  "description",
+  "readPermission",
+  "writePermission",
+  "parentFolderId",
+  "permalink",
+] as const;
 
 export const profileSchema = z.object({}).strict();
 
 export const listNotesSchema = z
   .object({
-    teamPath: z.string().min(1).optional()
+    teamPath: z.string().min(1).optional(),
   })
   .strict();
 
 export const getNoteSchema = z
   .object({
     teamPath: z.string().min(1).optional(),
-    noteId: z.string().min(1)
+    noteId: z.string().min(1),
   })
   .strict();
 
@@ -50,7 +43,7 @@ export const createNoteSchema = z
     commentPermission: commentPermissionSchema.optional(),
     suggestEditPermission: suggestEditPermissionSchema.optional(),
     parentFolderId: z.string().min(1).optional(),
-    permalink: z.string().min(1).optional()
+    permalink: z.string().min(1).optional(),
   })
   .strict();
 
@@ -65,9 +58,12 @@ export const updateNoteSchema = z
     readPermission: notePermissionRoleSchema.optional(),
     writePermission: notePermissionRoleSchema.optional(),
     parentFolderId: z.string().min(1).optional(),
-    permalink: z.string().min(1).optional()
+    permalink: z.string().min(1).optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => updateNoteFields.some((field) => input[field] !== undefined), {
+    message: "At least one note field must be provided to update.",
+  });
 
 export interface HackMdToolClient {
   getProfile(): Promise<unknown>;
@@ -83,8 +79,10 @@ export type ToolResult = {
 
 export function toolHandlers(client: HackMdToolClient | HackMdClient) {
   return {
-    hackmdProfile: async (_input: z.infer<typeof profileSchema>): Promise<ToolResult> =>
-      toTextResult(await client.getProfile()),
+    hackmdProfile: async (input: z.infer<typeof profileSchema>): Promise<ToolResult> => {
+      void input;
+      return toTextResult(await client.getProfile());
+    },
 
     hackmdListNotes: async (input: z.infer<typeof listNotesSchema>): Promise<ToolResult> =>
       toTextResult(await client.listNotes(input)),
@@ -96,12 +94,12 @@ export function toolHandlers(client: HackMdToolClient | HackMdClient) {
       toTextResult(await client.createNote(input)),
 
     hackmdUpdateNote: async (input: z.infer<typeof updateNoteSchema>): Promise<ToolResult> =>
-      toTextResult(await client.updateNote(input))
+      toTextResult(await client.updateNote(input)),
   };
 }
 
 export function toTextResult(value: unknown): ToolResult {
   return {
-    content: [{ type: "text", text: JSON.stringify(value, null, 2) }]
+    content: [{ type: "text", text: JSON.stringify(value, null, 2) ?? String(value) }],
   };
 }

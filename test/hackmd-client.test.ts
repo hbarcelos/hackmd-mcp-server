@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HackMdClient, HackMdHttpError } from "../src/hackmd/client.js";
+import { HackMdClient } from "../src/hackmd/client.js";
+
+import type { HackMdHttpError } from "../src/hackmd/client.js";
 
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json" },
   });
 
 describe("HackMdClient", () => {
@@ -19,7 +21,7 @@ describe("HackMdClient", () => {
     client = new HackMdClient({
       apiToken: "secret",
       apiUrl: "https://api.example/v1",
-      fetch: fetchMock
+      fetch: fetchMock,
     });
   });
 
@@ -34,7 +36,7 @@ describe("HackMdClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/me", {
       method: "GET",
-      headers: { Authorization: "Bearer secret" }
+      headers: { Authorization: "Bearer secret" },
     });
   });
 
@@ -45,7 +47,7 @@ describe("HackMdClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/notes", {
       method: "GET",
-      headers: { Authorization: "Bearer secret" }
+      headers: { Authorization: "Bearer secret" },
     });
   });
 
@@ -54,13 +56,10 @@ describe("HackMdClient", () => {
 
     await client.getNote({ teamPath: "team/space", noteId: "note 1" });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.example/v1/teams/team%2Fspace/notes/note%201",
-      {
-        method: "GET",
-        headers: { Authorization: "Bearer secret" }
-      }
-    );
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/teams/team%2Fspace/notes/note%201", {
+      method: "GET",
+      headers: { Authorization: "Bearer secret" },
+    });
   });
 
   it("serializes note creation bodies", async () => {
@@ -70,21 +69,21 @@ describe("HackMdClient", () => {
       title: "Plan",
       content: "# Plan",
       tags: ["work"],
-      readPermission: "guest"
+      readPermission: "guest",
     });
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/notes", {
       method: "POST",
       headers: {
         Authorization: "Bearer secret",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         title: "Plan",
         content: "# Plan",
         tags: ["work"],
-        readPermission: "guest"
-      })
+        readPermission: "guest",
+      }),
     });
   });
 
@@ -94,19 +93,19 @@ describe("HackMdClient", () => {
     await client.updateNote({
       noteId: "note-1",
       content: "updated",
-      writePermission: "owner"
+      writePermission: "owner",
     });
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/notes/note-1", {
       method: "PATCH",
       headers: {
         Authorization: "Bearer secret",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         content: "updated",
-        writePermission: "owner"
-      })
+        writePermission: "owner",
+      }),
     });
   });
 
@@ -117,7 +116,7 @@ describe("HackMdClient", () => {
       name: "HackMdHttpError",
       status: 401,
       path: "/me",
-      responseText: "bad token"
+      responseText: "bad token",
     } satisfies Partial<HackMdHttpError>);
   });
 
@@ -129,7 +128,7 @@ describe("HackMdClient", () => {
     await expect(client.listNotes()).rejects.toMatchObject({
       name: "HackMdNetworkError",
       url: "https://api.example/v1/notes",
-      cause: fetchError
+      cause: fetchError,
     });
   });
 
@@ -138,13 +137,13 @@ describe("HackMdClient", () => {
 
     const clientWithoutInjectedFetch = new HackMdClient({
       apiToken: "secret",
-      apiUrl: "https://api.example/v1"
+      apiUrl: "https://api.example/v1",
     });
 
     await expect(clientWithoutInjectedFetch.listNotes()).resolves.toEqual([{ id: "note-1" }]);
     expect(globalThis.fetch).toHaveBeenCalledWith("https://api.example/v1/notes", {
       method: "GET",
-      headers: { Authorization: "Bearer secret" }
+      headers: { Authorization: "Bearer secret" },
     });
   });
 });

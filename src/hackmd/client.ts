@@ -3,17 +3,8 @@ import type { HackMdConfig } from "../config.js";
 type Fetch = typeof fetch;
 
 export type NotePermissionRole = "owner" | "signed_in" | "guest";
-export type CommentPermissionType =
-  | "disabled"
-  | "forbidden"
-  | "owners"
-  | "signed_in_users"
-  | "everyone";
-export type SuggestEditPermissionType =
-  | "disabled"
-  | "forbidden"
-  | "owners"
-  | "signed_in_users";
+export type CommentPermissionType = "disabled" | "forbidden" | "owners" | "signed_in_users" | "everyone";
+export type SuggestEditPermissionType = "disabled" | "forbidden" | "owners" | "signed_in_users";
 
 export interface NoteSelector {
   noteId: string;
@@ -59,7 +50,7 @@ export class HackMdHttpError extends Error {
   constructor(
     public readonly status: number,
     public readonly path: string,
-    public readonly responseText: string
+    public readonly responseText: string,
   ) {
     super(`HackMD API request failed: ${status} ${path} ${responseText}`);
     this.name = "HackMdHttpError";
@@ -69,7 +60,7 @@ export class HackMdHttpError extends Error {
 export class HackMdNetworkError extends Error {
   constructor(
     public readonly url: string,
-    public override readonly cause: unknown
+    public override readonly cause: unknown,
   ) {
     super(`HackMD API request failed before receiving a response: ${url}`, { cause });
     this.name = "HackMdNetworkError";
@@ -104,7 +95,7 @@ export class HackMdClient {
 
     return this.request(this.notesPath(teamPath), {
       method: "POST",
-      body
+      body,
     });
   }
 
@@ -113,7 +104,7 @@ export class HackMdClient {
 
     return this.request(`${this.notesPath(teamPath)}/${encodePathSegment(noteId)}`, {
       method: "PATCH",
-      body
+      body,
     });
   }
 
@@ -127,19 +118,19 @@ export class HackMdClient {
 
   private async request(
     path: string,
-    options: { method?: string; body?: Record<string, unknown> } = {}
+    options: { method?: string; body?: Record<string, unknown> } = {},
   ): Promise<unknown> {
     if (!this.apiToken) {
       throw new Error("HACKMD_API_TOKEN is required");
     }
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.apiToken}`
+      Authorization: `Bearer ${this.apiToken}`,
     };
 
     const init: RequestInit = {
       method: options.method ?? "GET",
-      headers
+      headers,
     };
 
     if (options.body) {
