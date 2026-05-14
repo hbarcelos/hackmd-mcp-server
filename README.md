@@ -27,13 +27,13 @@ Create a HackMD API token from your HackMD account settings. Treat it like a pas
 Use the published npm package directly with `npx`:
 
 ```bash
-npx -y hackmd-mcp-server@0.1.0
+npx -y hackmd-mcp-server@latest
 ```
 
 Or install the CLI globally:
 
 ```bash
-npm install -g hackmd-mcp-server@0.1.0
+npm install -g hackmd-mcp-server@latest
 hackmd-mcp
 ```
 
@@ -104,7 +104,7 @@ Recommended, using the published npm package:
 ```bash
 codex mcp add hackmd \
   --env HACKMD_API_TOKEN=your-token \
-  -- npx -y hackmd-mcp-server@0.1.0
+  -- npx -y hackmd-mcp-server@latest
 ```
 
 If you installed the command globally:
@@ -131,7 +131,7 @@ Equivalent manual `~/.codex/config.toml` entry:
 ```toml
 [mcp_servers.hackmd]
 command = "npx"
-args = ["-y", "hackmd-mcp-server@0.1.0"]
+args = ["-y", "hackmd-mcp-server@latest"]
 enabled = true
 
 [mcp_servers.hackmd.env]
@@ -179,7 +179,7 @@ Recommended, using the published npm package:
 ```bash
 claude mcp add --transport stdio --scope user \
   --env HACKMD_API_TOKEN=your-token \
-  hackmd -- npx -y hackmd-mcp-server@0.1.0
+  hackmd -- npx -y hackmd-mcp-server@latest
 ```
 
 If you installed the command globally:
@@ -226,7 +226,7 @@ Open your Claude Desktop MCP configuration file and add:
     "hackmd": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "hackmd-mcp-server@0.1.0"],
+      "args": ["-y", "hackmd-mcp-server@latest"],
       "env": {
         "HACKMD_API_TOKEN": "your-token"
       }
