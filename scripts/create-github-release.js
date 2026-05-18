@@ -14,7 +14,9 @@ function run(command, args, options = {}) {
   }
 
   console.log(printable);
-  return execFileSync(command, args, { encoding: "utf8", stdio: options.stdio ?? "pipe" }).trim();
+  const result = execFileSync(command, args, { encoding: "utf8", stdio: options.stdio ?? "pipe" });
+
+  return typeof result === "string" ? result.trim() : "";
 }
 
 function output(command, args) {
