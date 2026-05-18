@@ -1,4 +1,5 @@
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -51,7 +52,22 @@ export async function runCli(options: CliOptions = {}): Promise<void> {
   stdin.resume();
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+export function isCliEntrypoint(moduleUrl: string, argvPath: string | undefined = process.argv[1]): boolean {
+  if (!argvPath) {
+    return false;
+  }
+
+  try {
+    const modulePath = realpathSync(fileURLToPath(moduleUrl));
+    const invokedPath = realpathSync(argvPath);
+
+    return pathToFileURL(modulePath).href === pathToFileURL(invokedPath).href;
+  } catch {
+    return moduleUrl === pathToFileURL(argvPath).href;
+  }
+}
+
+if (isCliEntrypoint(import.meta.url)) {
   runCli().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
