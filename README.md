@@ -256,13 +256,16 @@ npm run build
 npm pack --dry-run
 ```
 
-Publish the current version:
+Publish the current version and create the matching GitHub tag/release:
 
 ```bash
 npm publish
+npm run release:github
 ```
 
-For the next release, use `npm version patch`, `npm version minor`, or `npm version major` as appropriate, then publish. During `0.x`, minor versions may include breaking changes; patch versions should remain bugfix-only.
+`npm run release:github` reads the current `package.json` version, creates and verifies a signed local `vX.Y.Z` tag when missing, pushes that tag, then creates the matching GitHub release with generated notes. The working tree must be clean before running it.
+
+For the next release, use `npm version patch --no-git-tag-version`, `npm version minor --no-git-tag-version`, or `npm version major --no-git-tag-version` as appropriate, commit the version bump, publish, then run `npm run release:github`. During `0.x`, minor versions may include breaking changes; patch versions should remain bugfix-only.
 
 ## Example Prompts
 
