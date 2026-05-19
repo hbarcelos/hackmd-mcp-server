@@ -4,6 +4,13 @@ export interface HackMdConfig {
 }
 
 const DEFAULT_API_URL = "https://api.hackmd.io/v1";
+const DEFAULT_GITHUB_API_URL = "https://api.github.com";
+
+export interface GitHubConfig {
+  apiToken?: string;
+  apiUrl: string;
+  statePath?: string;
+}
 
 export interface LoadConfigOptions {
   requireApiToken?: boolean;
@@ -20,6 +27,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: LoadCo
   return {
     apiToken,
     apiUrl: stripTrailingSlash(env.HACKMD_API_URL?.trim() || DEFAULT_API_URL),
+  };
+}
+
+export function loadGitHubConfig(env: NodeJS.ProcessEnv = process.env): GitHubConfig {
+  return {
+    apiToken: env.GITHUB_TOKEN?.trim() || undefined,
+    apiUrl: stripTrailingSlash(env.GITHUB_API_URL?.trim() || DEFAULT_GITHUB_API_URL),
+    statePath: env.HACKMD_MCP_STATE_PATH?.trim() || undefined,
   };
 }
 

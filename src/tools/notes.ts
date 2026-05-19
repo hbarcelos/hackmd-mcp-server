@@ -1,6 +1,12 @@
 import { z } from "zod";
 
+import { loadGitHubConfig } from "../config.js";
+import { GitHubClient } from "../github/client.js";
+import { getGitHubSyncStatus, pullGitHubFileToHackMd, syncNoteToGitHub } from "../github/sync.js";
+import { FileGitHubSyncStateStore } from "../github/sync-state.js";
+
 import type { CreateNoteInput, HackMdClient, ListNotesInput, NoteSelector, UpdateNoteInput } from "../hackmd/client.js";
+import type { GitHubSyncStateStore } from "../github/sync-state.js";
 
 const notePermissionRoleSchema = z.enum(["owner", "signed_in", "guest"]);
 const commentPermissionSchema = z.enum(["disabled", "forbidden", "owners", "signed_in_users", "everyone"]);
@@ -65,6 +71,47 @@ export const updateNoteSchema = z
     message: "At least one note field must be provided to update.",
   });
 
+export const syncNoteToGitHubSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+    noteId: z.string().min(1),
+    repository: z
+      .string()
+      .regex(/^[^/]+\/[^/]+$/, 'repository must use the "owner/repo" format')
+      .optional(),
+    branch: z.string().min(1).optional(),
+    filePath: z.string().min(1).optional(),
+    baseBranch: z.string().min(1).optional(),
+    includeTitleTags: z.boolean().optional(),
+    allowDefaultBranch: z.boolean().optional(),
+    pullRequestTitle: z.string().min(1).optional(),
+    pullRequestBody: z.string().min(1).optional(),
+    version: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const githubSyncStatusSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+    noteId: z.string().min(1),
+  })
+  .strict();
+
+export const pullGitHubFileToHackMdSchema = z
+  .object({
+    repository: z.string().regex(/^[^/]+\/[^/]+$/, 'repository must use the "owner/repo" format'),
+    filePath: z.string().min(1),
+    branch: z.string().min(1).optional(),
+    syncBranch: z.string().min(1).optional(),
+    teamPath: z.string().min(1).optional(),
+    noteId: z.string().min(1).optional(),
+    overwriteHackMdContent: z.boolean().optional(),
+    includeTitleTags: z.boolean().optional(),
+    readPermission: notePermissionRoleSchema.optional(),
+    writePermission: notePermissionRoleSchema.optional(),
+  })
+  .strict();
+
 export interface HackMdToolClient {
   getProfile(): Promise<unknown>;
   listNotes(input?: ListNotesInput): Promise<unknown>;
@@ -73,11 +120,32 @@ export interface HackMdToolClient {
   updateNote(input: UpdateNoteInput): Promise<unknown>;
 }
 
+export interface GitHubToolClient {
+  getRepository: GitHubClient["getRepository"];
+  getBranchRef: GitHubClient["getBranchRef"];
+  getFile: GitHubClient["getFile"];
+  createBranch: GitHubClient["createBranch"];
+  putFile: GitHubClient["putFile"];
+  findOpenPullRequest: GitHubClient["findOpenPullRequest"];
+  getPullRequest: GitHubClient["getPullRequest"];
+  createPullRequest: GitHubClient["createPullRequest"];
+}
+
+export interface ToolHandlerOptions {
+  github?: GitHubToolClient;
+  syncStateStore?: GitHubSyncStateStore;
+  now?: () => Date;
+}
+
 export type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
 };
 
-export function toolHandlers(client: HackMdToolClient | HackMdClient) {
+export function toolHandlers(client: HackMdToolClient | HackMdClient, options: ToolHandlerOptions = {}) {
+  const githubConfig = loadGitHubConfig();
+  const github = options.github ?? new GitHubClient(githubConfig);
+  const syncStateStore = options.syncStateStore ?? new FileGitHubSyncStateStore(githubConfig.statePath);
+
   return {
     hackmdProfile: async (input: z.infer<typeof profileSchema>): Promise<ToolResult> => {
       void input;
@@ -95,6 +163,29 @@ export function toolHandlers(client: HackMdToolClient | HackMdClient) {
 
     hackmdUpdateNote: async (input: z.infer<typeof updateNoteSchema>): Promise<ToolResult> =>
       toTextResult(await client.updateNote(input)),
+
+    hackmdSyncNoteToGitHub: async (input: z.infer<typeof syncNoteToGitHubSchema>): Promise<ToolResult> =>
+      toTextResult(
+        await syncNoteToGitHub(input, {
+          hackmd: client,
+          github,
+          syncStateStore,
+          now: options.now,
+        }),
+      ),
+
+    hackmdPullGitHubFileToHackMd: async (input: z.infer<typeof pullGitHubFileToHackMdSchema>): Promise<ToolResult> =>
+      toTextResult(
+        await pullGitHubFileToHackMd(input, {
+          hackmd: client,
+          github,
+          syncStateStore,
+          now: options.now,
+        }),
+      ),
+
+    hackmdGitHubSyncStatus: async (input: z.infer<typeof githubSyncStatusSchema>): Promise<ToolResult> =>
+      toTextResult(await getGitHubSyncStatus(input, syncStateStore)),
   };
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loadConfig } from "../src/config.js";
+import { loadConfig, loadGitHubConfig } from "../src/config.js";
 
 describe("loadConfig", () => {
   it("requires HACKMD_API_TOKEN", () => {
@@ -30,6 +30,30 @@ describe("loadConfig", () => {
     ).toEqual({
       apiToken: "token",
       apiUrl: "https://example.test/v1",
+    });
+  });
+});
+
+describe("loadGitHubConfig", () => {
+  it("loads optional GitHub sync configuration", () => {
+    expect(loadGitHubConfig({})).toEqual({
+      apiToken: undefined,
+      apiUrl: "https://api.github.com",
+      statePath: undefined,
+    });
+  });
+
+  it("allows overriding GitHub API URL and sync state path", () => {
+    expect(
+      loadGitHubConfig({
+        GITHUB_TOKEN: "ghs_secret",
+        GITHUB_API_URL: "https://github.example/api/v3/",
+        HACKMD_MCP_STATE_PATH: "/tmp/hackmd-state.json",
+      }),
+    ).toEqual({
+      apiToken: "ghs_secret",
+      apiUrl: "https://github.example/api/v3",
+      statePath: "/tmp/hackmd-state.json",
     });
   });
 });

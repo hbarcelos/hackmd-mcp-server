@@ -5,6 +5,8 @@ import {
   getNoteSchema,
   listNotesSchema,
   profileSchema,
+  pullGitHubFileToHackMdSchema,
+  syncNoteToGitHubSchema,
   toTextResult,
   toolHandlers,
   updateNoteSchema,
@@ -30,6 +32,35 @@ describe("note tool schemas", () => {
       noteId: "note-1",
       title: "Updated",
     });
+  });
+
+  it("allows GitHub re-sync inputs without repository", () => {
+    expect(syncNoteToGitHubSchema.parse({ noteId: "note-1" })).toEqual({ noteId: "note-1" });
+    expect(syncNoteToGitHubSchema.parse({ noteId: "note-1", repository: "owner/repo" })).toEqual({
+      noteId: "note-1",
+      repository: "owner/repo",
+    });
+    expect(() => syncNoteToGitHubSchema.parse({ noteId: "note-1", repository: "owner/repo/extra" })).toThrow();
+  });
+
+  it("validates GitHub-to-HackMD bootstrap inputs", () => {
+    expect(
+      pullGitHubFileToHackMdSchema.parse({
+        repository: "owner/repo",
+        filePath: "docs/note.md",
+        noteId: "note-1",
+        overwriteHackMdContent: true,
+      }),
+    ).toEqual({
+      repository: "owner/repo",
+      filePath: "docs/note.md",
+      noteId: "note-1",
+      overwriteHackMdContent: true,
+    });
+    expect(() => pullGitHubFileToHackMdSchema.parse({ repository: "owner/repo" })).toThrow();
+    expect(() =>
+      pullGitHubFileToHackMdSchema.parse({ repository: "owner/repo/extra", filePath: "docs/note.md" }),
+    ).toThrow();
   });
 });
 

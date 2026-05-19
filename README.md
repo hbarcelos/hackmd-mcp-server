@@ -59,20 +59,26 @@ HACKMD_API_TOKEN=your-token hackmd-mcp
 
 Optional environment variables:
 
-| Variable           | Required | Default                    | Description                                                        |
-| ------------------ | -------- | -------------------------- | ------------------------------------------------------------------ |
-| `HACKMD_API_TOKEN` | Yes      | none                       | HackMD API token used for all requests.                            |
-| `HACKMD_API_URL`   | No       | `https://api.hackmd.io/v1` | Override only for testing or custom HackMD-compatible deployments. |
+| Variable                | Required | Default                                              | Description                                                        |
+| ----------------------- | -------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| `HACKMD_API_TOKEN`      | Yes      | none                                                 | HackMD API token used for all requests.                            |
+| `HACKMD_API_URL`        | No       | `https://api.hackmd.io/v1`                           | Override only for testing or custom HackMD-compatible deployments. |
+| `GITHUB_TOKEN`          | No       | none                                                 | Required only for GitHub sync tools. Needs contents and PR access. |
+| `GITHUB_API_URL`        | No       | `https://api.github.com`                             | Override for GitHub Enterprise REST API deployments.               |
+| `HACKMD_MCP_STATE_PATH` | No       | `$XDG_STATE_HOME/hackmd-mcp-server/github-sync.json` | Override the local file used to remember GitHub sync state.        |
 
 ## Tools
 
-| Tool                 | Purpose                                                              |
-| -------------------- | -------------------------------------------------------------------- |
-| `hackmd_profile`     | Get the current HackMD user profile.                                 |
-| `hackmd_list_notes`  | List personal notes, or team notes when `teamPath` is provided.      |
-| `hackmd_get_note`    | Read one note by `noteId`.                                           |
-| `hackmd_create_note` | Create a personal or team note.                                      |
-| `hackmd_update_note` | Update note content, title, tags, permissions, folder, or permalink. |
+| Tool                                | Purpose                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `hackmd_profile`                    | Get the current HackMD user profile.                                             |
+| `hackmd_list_notes`                 | List personal notes, or team notes when `teamPath` is provided.                  |
+| `hackmd_get_note`                   | Read one note by `noteId`.                                                       |
+| `hackmd_create_note`                | Create a personal or team note.                                                  |
+| `hackmd_update_note`                | Update note content, title, tags, permissions, folder, or permalink.             |
+| `hackmd_sync_note_to_github`        | Sync current note content to a GitHub branch and pull request.                   |
+| `hackmd_pull_github_file_to_hackmd` | Create or update a HackMD note from a GitHub Markdown file and start sync state. |
+| `hackmd_github_sync_status`         | Read remembered local GitHub sync state for a note.                              |
 
 Common inputs:
 
@@ -89,6 +95,72 @@ Common inputs:
 ```
 
 Omit `teamPath` for personal notes. Include `teamPath` to use team note endpoints.
+
+### GitHub sync
+
+`hackmd_sync_note_to_github` streamlines the note-to-GitHub flow by choosing safe defaults:
+
+- It reads the current/latest HackMD note content. Named historical HackMD versions are not supported by the public HackMD API, so explicit older `version` values return an unsupported error.
+- It refuses to sync directly to the repository default branch unless `allowDefaultBranch` is `true`.
+- It suggests a branch from the note title, such as `hackmd/release-plan-20260519`.
+- It suggests a Markdown filename from the note title, such as `release-plan.md`.
+- It does not include title or tags by default. Set `includeTitleTags` to `true` to add or merge YAML front matter with `title` and `tags`.
+- It creates or reuses an open pull request for the sync branch.
+
+First sync example:
+
+```json
+{
+  "noteId": "abc123",
+  "repository": "owner/repo"
+}
+```
+
+Override branch, path, or front matter on the first sync:
+
+```json
+{
+  "noteId": "abc123",
+  "repository": "owner/repo",
+  "branch": "hackmd/release-notes",
+  "filePath": "docs/release-notes.md",
+  "includeTitleTags": true
+}
+```
+
+Re-sync remembers the repository, filename, initial branch, and PR in local state. You can call it with just the note selector:
+
+```json
+{
+  "noteId": "abc123"
+}
+```
+
+On re-sync, the filename cannot be changed. Branch, base branch, and front matter options can still be overridden. If the previous PR was merged, the next re-sync keeps the original filename, creates a fresh branch from the default branch, and opens a new PR.
+
+To start from an existing GitHub Markdown file, use `hackmd_pull_github_file_to_hackmd`. It reads the file, parses YAML front matter `title` and `tags` into HackMD metadata, strips that front matter from the HackMD note body, creates a non-default future sync branch, and records the repo/path state for later re-syncs.
+
+Create a new HackMD note from GitHub:
+
+```json
+{
+  "repository": "owner/repo",
+  "filePath": "docs/release-notes.md"
+}
+```
+
+Update an existing HackMD note from GitHub:
+
+```json
+{
+  "noteId": "abc123",
+  "repository": "owner/repo",
+  "filePath": "docs/release-notes.md",
+  "overwriteHackMdContent": true
+}
+```
+
+When updating an existing note, `overwriteHackMdContent` must be `true` because the GitHub file replaces the current HackMD content. If a note already has sync state for another repo or file, the bootstrap tool rejects the relink.
 
 Permission values:
 
@@ -296,6 +368,20 @@ For team notes:
 List notes in the HackMD team workspace "my-team".
 ```
 
+For GitHub sync:
+
+```text
+Sync HackMD note abc123 to owner/repo on GitHub.
+```
+
+```text
+Create a HackMD note from owner/repo docs/release-notes.md and start syncing it.
+```
+
+```text
+Show the GitHub sync status for HackMD note abc123.
+```
+
 ## Troubleshooting
 
 **The MCP client shows no HackMD tools**
@@ -309,6 +395,11 @@ List notes in the HackMD team workspace "my-team".
 - Regenerate the HackMD API token.
 - Confirm the environment variable is named exactly `HACKMD_API_TOKEN`.
 - Avoid quotes around the token in CLI `--env` usage unless your shell requires them.
+
+**GitHub sync fails with `GITHUB_TOKEN is required`**
+
+- Set `GITHUB_TOKEN` in the MCP server environment.
+- Confirm the token can write repository contents and create pull requests for the target repository.
 
 **Requests fail with `fetch failed`, `Connect Timeout Error`, or `EAI_AGAIN`**
 
@@ -348,5 +439,7 @@ HACKMD_API_TOKEN=your-token npm run dev
 ## References
 
 - HackMD API docs: <https://api.hackmd.io/v1/docs>
+- HackMD GitHub sync guide: <https://homepage.hackmd.io/blog/2023/12/20/sync-notes-to-github>
+- GitHub REST API docs: <https://docs.github.com/en/rest>
 - Codex MCP configuration: <https://www.mintlify.com/openai/codex/configuration/mcp-servers>
 - Claude Code MCP docs: <https://code.claude.com/docs/en/mcp>

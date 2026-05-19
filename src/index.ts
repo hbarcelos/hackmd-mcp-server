@@ -3,8 +3,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   createNoteSchema,
   getNoteSchema,
+  githubSyncStatusSchema,
   listNotesSchema,
   profileSchema,
+  pullGitHubFileToHackMdSchema,
+  syncNoteToGitHubSchema,
   toolHandlers,
   updateNoteSchema,
 } from "./tools/notes.js";
@@ -68,10 +71,59 @@ export function createServer(client: HackMdClient): McpServer {
     handlers.hackmdUpdateNote,
   );
 
+  server.registerTool(
+    "hackmd_sync_note_to_github",
+    {
+      title: "Sync HackMD Note to GitHub",
+      description:
+        "Sync the current HackMD note content to a non-default GitHub branch and create or reuse a pull request.",
+      inputSchema: syncNoteToGitHubSchema.shape,
+    },
+    handlers.hackmdSyncNoteToGitHub,
+  );
+
+  server.registerTool(
+    "hackmd_pull_github_file_to_hackmd",
+    {
+      title: "Pull GitHub File to HackMD",
+      description: "Create or update a HackMD note from a GitHub Markdown file and start GitHub sync state.",
+      inputSchema: pullGitHubFileToHackMdSchema.shape,
+    },
+    handlers.hackmdPullGitHubFileToHackMd,
+  );
+
+  server.registerTool(
+    "hackmd_github_sync_status",
+    {
+      title: "HackMD GitHub Sync Status",
+      description: "Read locally remembered GitHub sync state for a HackMD note.",
+      inputSchema: githubSyncStatusSchema.shape,
+    },
+    handlers.hackmdGitHubSyncStatus,
+  );
+
   return server;
 }
 
+export { GitHubClient, GitHubHttpError, GitHubNetworkError } from "./github/client.js";
+export { FileGitHubSyncStateStore } from "./github/sync-state.js";
 export { HackMdClient, HackMdHttpError, HackMdNetworkError } from "./hackmd/client.js";
+export type {
+  CreatePullRequestInput,
+  GitHubClientOptions,
+  GitHubFile,
+  GitHubPullRequest,
+  GitHubRef,
+  GitHubRepository,
+  PutFileInput,
+} from "./github/client.js";
+export type {
+  GitHubSyncResult,
+  PullGitHubFileToHackMdInput,
+  PullGitHubFileToHackMdResult,
+  SyncNoteToGitHubInput,
+} from "./github/sync.js";
+export type { GitHubSyncState, GitHubSyncStateStore } from "./github/sync-state.js";
 export type {
   CommentPermissionType,
   CreateNoteInput,
