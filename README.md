@@ -162,6 +162,17 @@ Update an existing HackMD note from GitHub:
 
 When updating an existing note, `overwriteHackMdContent` must be `true` because the GitHub file replaces the current HackMD content. If a note already has sync state for another repo or file, the bootstrap tool rejects the relink.
 
+GitHub token permissions:
+
+- Prefer a fine-grained personal access token scoped only to the target repository or repositories.
+- Required repository permissions:
+  - `Metadata`: read-only.
+  - `Contents`: read and write.
+  - `Pull requests`: read and write.
+- Optional repository permission:
+  - `Workflows`: read and write, only if you sync files under `.github/workflows/`.
+- Classic personal access tokens are broader. Use `repo` for private repositories, or `public_repo` if you only sync public repositories.
+
 Permission values:
 
 - `readPermission`: `owner`, `signed_in`, or `guest`
