@@ -19,6 +19,7 @@ This server exposes a small, focused HackMD toolset over stdio. It is designed f
 - Node.js 24 LTS
 - npm
 - A HackMD API token
+- A GitHub personal access token when using GitHub sync tools
 
 Create a HackMD API token from your HackMD account settings. Treat it like a password: do not commit it to git, paste it into prompts, or put it in shared MCP configuration files.
 
@@ -27,15 +28,17 @@ Create a HackMD API token from your HackMD account settings. Treat it like a pas
 Use the published npm package directly with `npx`:
 
 ```bash
-npx -y hackmd-mcp-server@latest
+npx -y hackmd-mcp-server@{VERSION}
 ```
 
 Or install the CLI globally:
 
 ```bash
-npm install -g hackmd-mcp-server@latest
+npm install -g hackmd-mcp-server@{VERSION}
 hackmd-mcp
 ```
+
+Replace `{VERSION}` with a specific published version. Pin the package to a specific version in MCP configuration; do not use mutable tags such as `latest` there, because a future package update would change the code your MCP client starts without an explicit config change.
 
 For development from a cloned checkout:
 
@@ -47,14 +50,14 @@ npm run build
 Run the built server directly:
 
 ```bash
-HACKMD_API_TOKEN=your-token npm start
+HACKMD_API_TOKEN=your-token GITHUB_TOKEN=your-github-token npm start
 ```
 
 Or install the checkout as a local global command:
 
 ```bash
 npm install -g .
-HACKMD_API_TOKEN=your-token hackmd-mcp
+HACKMD_API_TOKEN=your-token GITHUB_TOKEN=your-github-token hackmd-mcp
 ```
 
 Optional environment variables:
@@ -186,7 +189,7 @@ Recommended, using the published npm package:
 
 ```bash
 codex mcp add hackmd \
-  -- npx -y hackmd-mcp-server@latest
+  -- npx -y hackmd-mcp-server@{VERSION}
 ```
 
 If you installed the command globally:
@@ -206,16 +209,16 @@ codex mcp add hackmd \
   -- node /path/to/hackmd-mcp-server/dist/cli.js
 ```
 
-Set `HACKMD_API_TOKEN` in the environment that starts Codex. Do not paste the token into Codex MCP configuration files.
+Set `HACKMD_API_TOKEN` and, for GitHub sync tools, `GITHUB_TOKEN` in the environment that starts Codex. Do not paste tokens into Codex MCP configuration files.
 
 Equivalent manual `~/.codex/config.toml` entry:
 
 ```toml
 [mcp_servers.hackmd]
 command = "npx"
-args = ["-y", "hackmd-mcp-server@latest"]
+args = ["-y", "hackmd-mcp-server@{VERSION}"]
 enabled = true
-env_vars = ["HACKMD_API_TOKEN"]
+env_vars = ["HACKMD_API_TOKEN", "GITHUB_TOKEN"]
 ```
 
 For a globally installed command:
@@ -224,7 +227,7 @@ For a globally installed command:
 [mcp_servers.hackmd]
 command = "hackmd-mcp"
 enabled = true
-env_vars = ["HACKMD_API_TOKEN"]
+env_vars = ["HACKMD_API_TOKEN", "GITHUB_TOKEN"]
 ```
 
 For a checkout-based setup:
@@ -234,7 +237,7 @@ For a checkout-based setup:
 command = "node"
 args = ["/path/to/hackmd-mcp-server/dist/cli.js"]
 enabled = true
-env_vars = ["HACKMD_API_TOKEN"]
+env_vars = ["HACKMD_API_TOKEN", "GITHUB_TOKEN"]
 ```
 
 Verify:
@@ -255,7 +258,8 @@ Recommended, using the published npm package:
 ```bash
 claude mcp add --transport stdio --scope user \
   --env 'HACKMD_API_TOKEN=${HACKMD_API_TOKEN}' \
-  hackmd -- npx -y hackmd-mcp-server@latest
+  --env 'GITHUB_TOKEN=${GITHUB_TOKEN}' \
+  hackmd -- npx -y hackmd-mcp-server@{VERSION}
 ```
 
 If you installed the command globally:
@@ -263,6 +267,7 @@ If you installed the command globally:
 ```bash
 claude mcp add --transport stdio --scope user \
   --env 'HACKMD_API_TOKEN=${HACKMD_API_TOKEN}' \
+  --env 'GITHUB_TOKEN=${GITHUB_TOKEN}' \
   hackmd -- hackmd-mcp
 ```
 
@@ -274,10 +279,11 @@ npm install
 npm run build
 claude mcp add --transport stdio --scope local \
   --env 'HACKMD_API_TOKEN=${HACKMD_API_TOKEN}' \
+  --env 'GITHUB_TOKEN=${GITHUB_TOKEN}' \
   hackmd -- node /path/to/hackmd-mcp-server/dist/cli.js
 ```
 
-Set `HACKMD_API_TOKEN` in the environment that starts Claude Code. The single quotes above keep your shell from expanding the token while `claude mcp add` writes the config.
+Set `HACKMD_API_TOKEN` and, for GitHub sync tools, `GITHUB_TOKEN` in the environment that starts Claude Code. The single quotes above keep your shell from expanding the token values while `claude mcp add` writes the config.
 
 Verify:
 
@@ -304,16 +310,17 @@ Open your Claude Desktop MCP configuration file and add:
     "hackmd": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "hackmd-mcp-server@latest"],
+      "args": ["-y", "hackmd-mcp-server@{VERSION}"],
       "env": {
-        "HACKMD_API_TOKEN": "${HACKMD_API_TOKEN}"
+        "HACKMD_API_TOKEN": "${HACKMD_API_TOKEN}",
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
       }
     }
   }
 }
 ```
 
-Set `HACKMD_API_TOKEN` in the environment that starts Claude Desktop, then restart Claude Desktop after saving the file. If you prefer a checkout-based setup, use `"command": "node"` and `"args": ["/path/to/hackmd-mcp-server/dist/cli.js"]` after running `npm install && npm run build`.
+Set `HACKMD_API_TOKEN` and, for GitHub sync tools, `GITHUB_TOKEN` in the environment that starts Claude Desktop, then restart Claude Desktop after saving the file. If you prefer a checkout-based setup, use `"command": "node"` and `"args": ["/path/to/hackmd-mcp-server/dist/cli.js"]` after running `npm install && npm run build`.
 
 Common config file locations:
 
@@ -415,7 +422,7 @@ Show the GitHub sync status for HackMD note abc123.
 
 **The server exits immediately**
 
-- Run `HACKMD_API_TOKEN=your-token node /path/to/hackmd-mcp-server/dist/cli.js` manually.
+- Run `HACKMD_API_TOKEN=your-token GITHUB_TOKEN=your-github-token node /path/to/hackmd-mcp-server/dist/cli.js` manually.
 - Check that Node.js 24 LTS is the active runtime.
 - Use absolute paths in desktop client configuration.
 
@@ -439,7 +446,7 @@ This project uses ESLint for semantic checks and Prettier for formatting. Editor
 Run in development mode:
 
 ```bash
-HACKMD_API_TOKEN=your-token npm run dev
+HACKMD_API_TOKEN=your-token GITHUB_TOKEN=your-github-token npm run dev
 ```
 
 ## References
