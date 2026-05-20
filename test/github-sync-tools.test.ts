@@ -9,6 +9,7 @@ const note = {
   tags: ["docs"],
   content: "# Release Plan\n",
 };
+const fixedNow = () => new Date("2026-05-19T00:00:00Z");
 
 function makeClients() {
   const hackmd = {
@@ -39,7 +40,7 @@ function makeClients() {
 describe("GitHub sync tool handlers", () => {
   it("syncs current note content to a generated non-default branch and creates a PR", async () => {
     const { hackmd, github, store } = makeClients();
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     const result = await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
@@ -83,7 +84,7 @@ describe("GitHub sync tool handlers", () => {
 
   it("rejects direct sync to the repository default branch unless explicitly allowed", async () => {
     const { hackmd, github, store } = makeClients();
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(
       handlers.hackmdSyncNoteToGitHub({
@@ -96,7 +97,7 @@ describe("GitHub sync tool handlers", () => {
 
   it("does not try to create the default branch when direct sync is explicitly allowed", async () => {
     const { hackmd, github, store } = makeClients();
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
@@ -126,7 +127,7 @@ describe("GitHub sync tool handlers", () => {
       number: 7,
       html_url: "https://github.example/owner/repo/pull/7",
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(
       handlers.hackmdSyncNoteToGitHub({
@@ -154,7 +155,7 @@ describe("GitHub sync tool handlers", () => {
       state: "open",
       html_url: "https://github.example/owner/repo/pull/7",
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
@@ -178,7 +179,7 @@ describe("GitHub sync tool handlers", () => {
       pullRequestUrl: "https://github.example/owner/repo/pull/7",
     });
     github.getPullRequest.mockResolvedValue({ number: 7, state: "closed", merged_at: "2026-05-18T12:00:00Z" });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
@@ -202,7 +203,7 @@ describe("GitHub sync tool handlers", () => {
       pullRequestUrl: "https://github.example/owner/repo/pull/8",
     });
     github.getPullRequest.mockResolvedValue({ number: 8, state: "closed", merged_at: "2026-05-18T12:00:00Z" });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
@@ -214,7 +215,7 @@ describe("GitHub sync tool handlers", () => {
 
   it("reports unsupported explicit historical versions", async () => {
     const { hackmd, github, store } = makeClients();
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(
       handlers.hackmdSyncNoteToGitHub({
@@ -232,7 +233,7 @@ describe("GitHub sync tool handlers", () => {
       repository: "owner/repo",
       filePath: "docs/release.md",
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(handlers.hackmdGitHubSyncStatus({ noteId: "note-1" })).resolves.toEqual({
       content: [
@@ -262,7 +263,7 @@ describe("GitHub sync tool handlers", () => {
       ),
     });
     hackmd.createNote.mockResolvedValue({ id: "new-note-id", title: "Imported Note" });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     const result = await handlers.hackmdPullGitHubFileToHackMd({
       repository: "owner/repo",
@@ -305,7 +306,7 @@ describe("GitHub sync tool handlers", () => {
       encoding: "base64",
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(
       handlers.hackmdPullGitHubFileToHackMd({
@@ -325,7 +326,7 @@ describe("GitHub sync tool handlers", () => {
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
     });
     hackmd.updateNote.mockResolvedValue({ id: "note-1" });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdPullGitHubFileToHackMd({
       noteId: "note-1",
@@ -358,7 +359,7 @@ describe("GitHub sync tool handlers", () => {
       encoding: "base64",
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await expect(
       handlers.hackmdPullGitHubFileToHackMd({
@@ -381,7 +382,7 @@ describe("GitHub sync tool handlers", () => {
       baseBranch: "main",
       includeTitleTags: true,
     });
-    const handlers = toolHandlers(hackmd, { github, syncStateStore: store });
+    const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
       noteId: "note-1",
