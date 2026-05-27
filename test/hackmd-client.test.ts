@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HackMdClient } from "../src/hackmd/client.js";
 
 import type { HackMdHttpError } from "../src/hackmd/client.js";
+import type { MockedFunction } from "vitest";
 
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
@@ -11,13 +12,11 @@ const jsonResponse = (body: unknown, status = 200): Response =>
   });
 
 describe("HackMdClient", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let fetchMock: MockedFunction<typeof fetch>;
   let client: HackMdClient;
-  let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    fetchMock = vi.fn();
+    fetchMock = vi.fn<typeof fetch>();
     client = new HackMdClient({
       apiToken: "secret",
       apiUrl: "https://api.example/v1",
@@ -26,7 +25,7 @@ describe("HackMdClient", () => {
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   it("sends bearer auth when loading the current profile", async () => {
@@ -38,6 +37,16 @@ describe("HackMdClient", () => {
       method: "GET",
       headers: { Authorization: "Bearer secret" },
     });
+  });
+
+  it("requires HACKMD_API_TOKEN only when making a request", async () => {
+    const clientWithoutToken = new HackMdClient({
+      apiUrl: "https://api.example/v1",
+      fetch: fetchMock,
+    });
+
+    await expect(clientWithoutToken.getProfile()).rejects.toThrow("HACKMD_API_TOKEN is required");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("uses personal note endpoints when no team path is provided", async () => {
@@ -133,7 +142,7 @@ describe("HackMdClient", () => {
   });
 
   it("uses native fetch when no fetch implementation is injected", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse([{ id: "note-1" }]));
+    const nativeFetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse([{ id: "note-1" }]));
 
     const clientWithoutInjectedFetch = new HackMdClient({
       apiToken: "secret",
@@ -141,7 +150,7 @@ describe("HackMdClient", () => {
     });
 
     await expect(clientWithoutInjectedFetch.listNotes()).resolves.toEqual([{ id: "note-1" }]);
-    expect(globalThis.fetch).toHaveBeenCalledWith("https://api.example/v1/notes", {
+    expect(nativeFetchSpy).toHaveBeenCalledWith("https://api.example/v1/notes", {
       method: "GET",
       headers: { Authorization: "Bearer secret" },
     });

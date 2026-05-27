@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { GitHubClient } from "../src/github/client.js";
+import { FileGitHubSyncStateStore } from "../src/github/sync-state.js";
+import { HackMdClient } from "../src/hackmd/client.js";
 import { toolHandlers } from "../src/tools/notes.js";
 
 const note = {
@@ -10,36 +17,51 @@ const note = {
   content: "# Release Plan\n",
 };
 const fixedNow = () => new Date("2026-05-19T00:00:00Z");
+const noopFetch: typeof fetch = vi.fn();
+let tempDirs: string[] = [];
+
+afterEach(() => {
+  vi.restoreAllMocks();
+
+  for (const tempDir of tempDirs) {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  tempDirs = [];
+});
 
 function makeClients() {
-  const hackmd = {
-    getProfile: vi.fn(),
-    listNotes: vi.fn(),
-    getNote: vi.fn().mockResolvedValue(note),
-    createNote: vi.fn(),
-    updateNote: vi.fn(),
-  };
-  const github = {
-    getRepository: vi.fn().mockResolvedValue({ default_branch: "main" }),
-    getBranchRef: vi.fn().mockResolvedValue({ object: { sha: "base-sha" } }),
-    getFile: vi.fn().mockResolvedValue(null),
-    createBranch: vi.fn().mockResolvedValue({}),
-    putFile: vi.fn().mockResolvedValue({ content: { sha: "new-sha" } }),
-    findOpenPullRequest: vi.fn().mockResolvedValue(null),
-    getPullRequest: vi.fn(),
-    createPullRequest: vi.fn().mockResolvedValue({ number: 7, html_url: "https://github.example/owner/repo/pull/7" }),
-  };
-  const store = {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue(undefined),
+  const hackmd = new HackMdClient({ apiToken: "hackmd-token", apiUrl: "https://api.hackmd.example", fetch: noopFetch });
+  const github = new GitHubClient({ apiToken: "github-token", apiUrl: "https://api.github.example", fetch: noopFetch });
+  const tempDir = mkdtempSync(join(tmpdir(), "hackmd-mcp-sync-test-"));
+  const store = new FileGitHubSyncStateStore(join(tempDir, "github-sync.json"));
+  tempDirs.push(tempDir);
+
+  const spies = {
+    getNote: vi.spyOn(hackmd, "getNote").mockResolvedValue(note),
+    createNote: vi.spyOn(hackmd, "createNote"),
+    updateNote: vi.spyOn(hackmd, "updateNote"),
+    getRepository: vi.spyOn(github, "getRepository").mockResolvedValue({ default_branch: "main" }),
+    getBranchRef: vi.spyOn(github, "getBranchRef").mockResolvedValue({ object: { sha: "base-sha" } }),
+    getFile: vi.spyOn(github, "getFile").mockResolvedValue(null),
+    createBranch: vi.spyOn(github, "createBranch").mockResolvedValue({}),
+    putFile: vi.spyOn(github, "putFile").mockResolvedValue({ content: { sha: "new-sha" } }),
+    findOpenPullRequest: vi.spyOn(github, "findOpenPullRequest").mockResolvedValue(null),
+    getPullRequest: vi.spyOn(github, "getPullRequest"),
+    createPullRequest: vi.spyOn(github, "createPullRequest").mockResolvedValue({
+      number: 7,
+      html_url: "https://github.example/owner/repo/pull/7",
+    }),
+    storeGet: vi.spyOn(store, "get").mockResolvedValue(null),
+    storeSet: vi.spyOn(store, "set").mockResolvedValue(undefined),
   };
 
-  return { hackmd, github, store };
+  return { hackmd, github, store, spies };
 }
 
 describe("GitHub sync tool handlers", () => {
   it("syncs current note content to a generated non-default branch and creates a PR", async () => {
-    const { hackmd, github, store } = makeClients();
+    const { hackmd, github, store, spies } = makeClients();
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     const result = await handlers.hackmdSyncNoteToGitHub({
@@ -47,8 +69,8 @@ describe("GitHub sync tool handlers", () => {
       repository: "owner/repo",
     });
 
-    expect(github.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519", "base-sha");
-    expect(github.putFile).toHaveBeenCalledWith({
+    expect(spies.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519", "base-sha");
+    expect(spies.putFile).toHaveBeenCalledWith({
       repository: "owner/repo",
       path: "release-plan.md",
       branch: "hackmd/release-plan-20260519",
@@ -56,15 +78,15 @@ describe("GitHub sync tool handlers", () => {
       message: "Sync HackMD note: Release Plan",
       sha: undefined,
     });
-    expect(github.createPullRequest.mock.calls[0]?.[0]).toMatchObject({
+    expect(spies.createPullRequest.mock.calls[0]?.[0]).toMatchObject({
       repository: "owner/repo",
       title: "Sync HackMD note: Release Plan",
       head: "hackmd/release-plan-20260519",
       base: "main",
     });
-    const createPullRequestInput = github.createPullRequest.mock.calls[0]?.[0] as { body: string };
+    const createPullRequestInput = spies.createPullRequest.mock.calls[0]?.[0] as { body: string };
     expect(createPullRequestInput.body).toContain("note-1");
-    expect(store.set).toHaveBeenCalledWith(
+    expect(spies.storeSet).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "personal:note-1",
         repository: "owner/repo",
@@ -96,7 +118,7 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("does not try to create the default branch when direct sync is explicitly allowed", async () => {
-    const { hackmd, github, store } = makeClients();
+    const { hackmd, github, store, spies } = makeClients();
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
@@ -106,14 +128,14 @@ describe("GitHub sync tool handlers", () => {
       allowDefaultBranch: true,
     });
 
-    expect(github.createBranch).not.toHaveBeenCalled();
-    expect(github.createPullRequest).not.toHaveBeenCalled();
-    expect(github.putFile).toHaveBeenCalledWith(expect.objectContaining({ branch: "main" }));
+    expect(spies.createBranch).not.toHaveBeenCalled();
+    expect(spies.createPullRequest).not.toHaveBeenCalled();
+    expect(spies.putFile).toHaveBeenCalledWith(expect.objectContaining({ branch: "main" }));
   });
 
   it("keeps the original file path on re-sync", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
@@ -123,7 +145,7 @@ describe("GitHub sync tool handlers", () => {
       pullRequestNumber: 7,
       pullRequestUrl: "https://github.example/owner/repo/pull/7",
     });
-    github.findOpenPullRequest.mockResolvedValue({
+    spies.findOpenPullRequest.mockResolvedValue({
       number: 7,
       html_url: "https://github.example/owner/repo/pull/7",
     });
@@ -139,8 +161,8 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("uses remembered repository and file path on re-sync", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
@@ -150,7 +172,7 @@ describe("GitHub sync tool handlers", () => {
       pullRequestNumber: 7,
       pullRequestUrl: "https://github.example/owner/repo/pull/7",
     });
-    github.getPullRequest.mockResolvedValue({
+    spies.getPullRequest.mockResolvedValue({
       number: 7,
       state: "open",
       html_url: "https://github.example/owner/repo/pull/7",
@@ -161,14 +183,14 @@ describe("GitHub sync tool handlers", () => {
       noteId: "note-1",
     });
 
-    expect(github.putFile).toHaveBeenCalledWith(
+    expect(spies.putFile).toHaveBeenCalledWith(
       expect.objectContaining({ repository: "owner/repo", path: "docs/release.md" }),
     );
   });
 
   it("creates a fresh branch after the previous PR was merged", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
@@ -178,7 +200,12 @@ describe("GitHub sync tool handlers", () => {
       pullRequestNumber: 7,
       pullRequestUrl: "https://github.example/owner/repo/pull/7",
     });
-    github.getPullRequest.mockResolvedValue({ number: 7, state: "closed", merged_at: "2026-05-18T12:00:00Z" });
+    spies.getPullRequest.mockResolvedValue({
+      number: 7,
+      state: "closed",
+      html_url: "https://github.example/owner/repo/pull/7",
+      merged_at: "2026-05-18T12:00:00Z",
+    });
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
@@ -186,13 +213,13 @@ describe("GitHub sync tool handlers", () => {
       repository: "owner/repo",
     });
 
-    expect(github.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519-2", "base-sha");
-    expect(github.putFile).toHaveBeenCalledWith(expect.objectContaining({ path: "docs/release.md" }));
+    expect(spies.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519-2", "base-sha");
+    expect(spies.putFile).toHaveBeenCalledWith(expect.objectContaining({ path: "docs/release.md" }));
   });
 
   it("increments the fresh branch suffix after repeated merged PRs", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
@@ -202,7 +229,12 @@ describe("GitHub sync tool handlers", () => {
       pullRequestNumber: 8,
       pullRequestUrl: "https://github.example/owner/repo/pull/8",
     });
-    github.getPullRequest.mockResolvedValue({ number: 8, state: "closed", merged_at: "2026-05-18T12:00:00Z" });
+    spies.getPullRequest.mockResolvedValue({
+      number: 8,
+      state: "closed",
+      html_url: "https://github.example/owner/repo/pull/8",
+      merged_at: "2026-05-18T12:00:00Z",
+    });
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdSyncNoteToGitHub({
@@ -210,7 +242,7 @@ describe("GitHub sync tool handlers", () => {
       repository: "owner/repo",
     });
 
-    expect(github.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519-3", "base-sha");
+    expect(spies.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/release-plan-20260519-3", "base-sha");
   });
 
   it("reports unsupported explicit historical versions", async () => {
@@ -227,11 +259,14 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("returns remembered sync status", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
+      initialBranch: "hackmd/release-plan",
+      activeBranch: "hackmd/release-plan",
+      baseBranch: "main",
     });
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
@@ -244,6 +279,9 @@ describe("GitHub sync tool handlers", () => {
               key: "personal:note-1",
               repository: "owner/repo",
               filePath: "docs/release.md",
+              initialBranch: "hackmd/release-plan",
+              activeBranch: "hackmd/release-plan",
+              baseBranch: "main",
             },
             null,
             2,
@@ -254,15 +292,15 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("creates a HackMD note from a GitHub file and starts sync state", async () => {
-    const { hackmd, github, store } = makeClients();
-    github.getFile.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.getFile.mockResolvedValue({
       sha: "file-sha",
       encoding: "base64",
       content: Buffer.from("---\ntitle: Imported Note\ntags:\n  - docs\n---\n\n# Imported\n", "utf8").toString(
         "base64",
       ),
     });
-    hackmd.createNote.mockResolvedValue({ id: "new-note-id", title: "Imported Note" });
+    spies.createNote.mockResolvedValue({ id: "new-note-id", title: "Imported Note" });
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     const result = await handlers.hackmdPullGitHubFileToHackMd({
@@ -270,14 +308,14 @@ describe("GitHub sync tool handlers", () => {
       filePath: "docs/imported.md",
     });
 
-    expect(github.getFile).toHaveBeenCalledWith("owner/repo", "docs/imported.md", "main");
-    expect(hackmd.createNote).toHaveBeenCalledWith({
+    expect(spies.getFile).toHaveBeenCalledWith("owner/repo", "docs/imported.md", "main");
+    expect(spies.createNote).toHaveBeenCalledWith({
       content: "# Imported\n",
       title: "Imported Note",
       tags: ["docs"],
     });
-    expect(github.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/imported-note-20260519", "base-sha");
-    expect(store.set).toHaveBeenCalledWith(
+    expect(spies.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/imported-note-20260519", "base-sha");
+    expect(spies.storeSet).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "personal:new-note-id",
         repository: "owner/repo",
@@ -300,8 +338,8 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("requires an overwrite flag before updating an existing HackMD note from GitHub", async () => {
-    const { hackmd, github, store } = makeClients();
-    github.getFile.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.getFile.mockResolvedValue({
       sha: "file-sha",
       encoding: "base64",
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
@@ -315,17 +353,17 @@ describe("GitHub sync tool handlers", () => {
         filePath: "docs/imported.md",
       }),
     ).rejects.toThrow("overwriteHackMdContent");
-    expect(hackmd.updateNote).not.toHaveBeenCalled();
+    expect(spies.updateNote).not.toHaveBeenCalled();
   });
 
   it("updates an existing HackMD note from GitHub when overwrite is confirmed", async () => {
-    const { hackmd, github, store } = makeClients();
-    github.getFile.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.getFile.mockResolvedValue({
       sha: "file-sha",
       encoding: "base64",
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
     });
-    hackmd.updateNote.mockResolvedValue({ id: "note-1" });
+    spies.updateNote.mockResolvedValue({ id: "note-1" });
     const handlers = toolHandlers(hackmd, { github, syncStateStore: store, now: fixedNow });
 
     await handlers.hackmdPullGitHubFileToHackMd({
@@ -335,18 +373,18 @@ describe("GitHub sync tool handlers", () => {
       overwriteHackMdContent: true,
     });
 
-    expect(hackmd.updateNote).toHaveBeenCalledWith({
+    expect(spies.updateNote).toHaveBeenCalledWith({
       noteId: "note-1",
       content: "# Imported\n",
       title: "imported",
       tags: undefined,
     });
-    expect(store.set).toHaveBeenCalledWith(expect.objectContaining({ key: "personal:note-1" }));
+    expect(spies.storeSet).toHaveBeenCalledWith(expect.objectContaining({ key: "personal:note-1" }));
   });
 
   it("rejects bootstrapping a synced note to a different GitHub file", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/old.md",
@@ -354,7 +392,7 @@ describe("GitHub sync tool handlers", () => {
       activeBranch: "hackmd/old",
       baseBranch: "main",
     });
-    github.getFile.mockResolvedValue({
+    spies.getFile.mockResolvedValue({
       sha: "file-sha",
       encoding: "base64",
       content: Buffer.from("# Imported\n", "utf8").toString("base64"),
@@ -372,8 +410,8 @@ describe("GitHub sync tool handlers", () => {
   });
 
   it("uses remembered includeTitleTags on later HackMD-to-GitHub syncs", async () => {
-    const { hackmd, github, store } = makeClients();
-    store.get.mockResolvedValue({
+    const { hackmd, github, store, spies } = makeClients();
+    spies.storeGet.mockResolvedValue({
       key: "personal:note-1",
       repository: "owner/repo",
       filePath: "docs/release.md",
@@ -388,7 +426,7 @@ describe("GitHub sync tool handlers", () => {
       noteId: "note-1",
     });
 
-    expect(github.putFile).toHaveBeenCalledWith(
+    expect(spies.putFile).toHaveBeenCalledWith(
       expect.objectContaining({
         content: "---\ntitle: Release Plan\ntags:\n  - docs\n---\n\n# Release Plan\n",
       }),

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { HackMdClient } from "../src/hackmd/client.js";
 import {
   createNoteSchema,
   getNoteSchema,
@@ -66,13 +67,12 @@ describe("note tool schemas", () => {
 
 describe("toolHandlers", () => {
   it("returns MCP text content with JSON results", async () => {
-    const client = {
-      getProfile: vi.fn().mockResolvedValue({ name: "Ada" }),
-      listNotes: vi.fn().mockResolvedValue([{ id: "note-1" }]),
-      getNote: vi.fn().mockResolvedValue({ id: "note-1", content: "body" }),
-      createNote: vi.fn().mockResolvedValue({ id: "note-2" }),
-      updateNote: vi.fn().mockResolvedValue({ id: "note-1", content: "new" }),
-    };
+    const client = new HackMdClient({ apiToken: "token", apiUrl: "https://api.hackmd.example", fetch: vi.fn() });
+    vi.spyOn(client, "getProfile").mockResolvedValue({ name: "Ada" });
+    vi.spyOn(client, "listNotes").mockResolvedValue([{ id: "note-1" }]);
+    vi.spyOn(client, "getNote").mockResolvedValue({ id: "note-1", content: "body" });
+    vi.spyOn(client, "createNote").mockResolvedValue({ id: "note-2" });
+    vi.spyOn(client, "updateNote").mockResolvedValue({ id: "note-1", content: "new" });
 
     const handlers = toolHandlers(client);
 

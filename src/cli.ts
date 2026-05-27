@@ -29,7 +29,7 @@ export async function runCli(options: CliOptions = {}): Promise<void> {
   const makeTransport = options.createTransport ?? (() => new StdioServerTransport());
   const makeServer = options.createServerFromClient ?? createServer;
 
-  const config = loadConfig(env);
+  const config = loadConfig(env, { requireApiToken: false });
   await configureNetworking();
 
   const client = new HackMdClient(config);

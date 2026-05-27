@@ -5,7 +5,7 @@ import { GitHubClient } from "../github/client.js";
 import { getGitHubSyncStatus, pullGitHubFileToHackMd, syncNoteToGitHub } from "../github/sync.js";
 import { FileGitHubSyncStateStore } from "../github/sync-state.js";
 
-import type { CreateNoteInput, HackMdClient, ListNotesInput, NoteSelector, UpdateNoteInput } from "../hackmd/client.js";
+import type { HackMdClient } from "../hackmd/client.js";
 import type { GitHubSyncStateStore } from "../github/sync-state.js";
 
 const notePermissionRoleSchema = z.enum(["owner", "signed_in", "guest"]);
@@ -112,27 +112,8 @@ export const pullGitHubFileToHackMdSchema = z
   })
   .strict();
 
-export interface HackMdToolClient {
-  getProfile(): Promise<unknown>;
-  listNotes(input?: ListNotesInput): Promise<unknown>;
-  getNote(input: NoteSelector): Promise<unknown>;
-  createNote(input: CreateNoteInput): Promise<unknown>;
-  updateNote(input: UpdateNoteInput): Promise<unknown>;
-}
-
-export interface GitHubToolClient {
-  getRepository: GitHubClient["getRepository"];
-  getBranchRef: GitHubClient["getBranchRef"];
-  getFile: GitHubClient["getFile"];
-  createBranch: GitHubClient["createBranch"];
-  putFile: GitHubClient["putFile"];
-  findOpenPullRequest: GitHubClient["findOpenPullRequest"];
-  getPullRequest: GitHubClient["getPullRequest"];
-  createPullRequest: GitHubClient["createPullRequest"];
-}
-
 export interface ToolHandlerOptions {
-  github?: GitHubToolClient;
+  github?: GitHubClient;
   syncStateStore?: GitHubSyncStateStore;
   now?: () => Date;
 }
@@ -141,7 +122,7 @@ export type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
 };
 
-export function toolHandlers(client: HackMdToolClient | HackMdClient, options: ToolHandlerOptions = {}) {
+export function toolHandlers(client: HackMdClient, options: ToolHandlerOptions = {}) {
   const githubConfig = loadGitHubConfig();
   const github = options.github ?? new GitHubClient(githubConfig);
   const syncStateStore = options.syncStateStore ?? new FileGitHubSyncStateStore(githubConfig.statePath);

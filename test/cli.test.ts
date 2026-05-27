@@ -6,6 +6,9 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as cli from "../src/cli.js";
+import { createServer } from "../src/index.js";
+
+import type { HackMdClient } from "../src/hackmd/client.js";
 
 const { runCli } = cli;
 
@@ -22,22 +25,22 @@ describe("runCli", () => {
     tempDirs = [];
   });
 
-  it("requires HACKMD_API_TOKEN before starting the MCP server", async () => {
+  it("starts the MCP server without HACKMD_API_TOKEN", async () => {
     const configureNetworking = vi.fn();
-    const connect = vi.fn();
+    const connect = vi.fn().mockResolvedValue(undefined);
+    const createServerFromClient = vi.fn(() => ({ connect }));
 
-    await expect(
-      runCli({
-        env: {},
-        configureNetworking,
-        createTransport: vi.fn(),
-        createServerFromClient: vi.fn(() => ({ connect })),
-        stdin: fakeStdin(),
-      }),
-    ).rejects.toThrow("HACKMD_API_TOKEN is required");
+    await runCli({
+      env: {},
+      configureNetworking,
+      createTransport: vi.fn(),
+      createServerFromClient,
+      stdin: fakeStdin(),
+    });
 
-    expect(configureNetworking).not.toHaveBeenCalled();
-    expect(connect).not.toHaveBeenCalled();
+    expect(configureNetworking).toHaveBeenCalledOnce();
+    expect(createServerFromClient).toHaveBeenCalledOnce();
+    expect(connect).toHaveBeenCalledOnce();
   });
 
   it("clears the keepalive interval when server connection fails", async () => {
@@ -48,9 +51,11 @@ describe("runCli", () => {
         env: { HACKMD_API_TOKEN: "token" },
         configureNetworking: vi.fn(),
         createTransport: vi.fn(),
-        createServerFromClient: vi.fn(() => ({
-          connect: vi.fn().mockRejectedValue(new Error("connect failed")),
-        })),
+        createServerFromClient: vi.fn((client: HackMdClient) => {
+          const server = createServer(client);
+          vi.spyOn(server, "connect").mockRejectedValue(new Error("connect failed"));
+          return server;
+        }),
         stdin: fakeStdin(),
       }),
     ).rejects.toThrow("connect failed");

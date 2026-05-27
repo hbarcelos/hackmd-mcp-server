@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import packageJson from "../package.json" with { type: "json" };
 import {
   createNoteSchema,
   getNoteSchema,
@@ -17,7 +18,7 @@ import type { HackMdClient } from "./hackmd/client.js";
 export function createServer(client: HackMdClient): McpServer {
   const server = new McpServer({
     name: "hackmd-mcp",
-    version: "0.1.0",
+    version: packageJson.version,
   });
   const handlers = toolHandlers(client);
 
