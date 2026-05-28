@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { loadGitHubConfig } from "../config.js";
+import { loadEnvironment, loadGitHubConfig } from "../config.js";
 import { GitHubClient } from "../github/client.js";
 import { getGitHubSyncStatus, pullGitHubFileToHackMd, syncNoteToGitHub } from "../github/sync.js";
 import { FileGitHubSyncStateStore } from "../github/sync-state.js";
@@ -123,7 +123,7 @@ export type ToolResult = {
 };
 
 export function toolHandlers(client: HackMdClient, options: ToolHandlerOptions = {}) {
-  const githubConfig = loadGitHubConfig();
+  const githubConfig = loadGitHubConfig(loadEnvironment());
   const github = options.github ?? new GitHubClient(githubConfig);
   const syncStateStore = options.syncStateStore ?? new FileGitHubSyncStateStore(githubConfig.statePath);
 

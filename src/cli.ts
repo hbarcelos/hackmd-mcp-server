@@ -3,7 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { loadConfig } from "./config.js";
+import { loadConfig, loadEnvironment } from "./config.js";
 import { HackMdClient } from "./hackmd/client.js";
 import { createServer } from "./index.js";
 import { configureNativeFetchNetworking } from "./network.js";
@@ -23,7 +23,7 @@ export interface CliOptions {
 }
 
 export async function runCli(options: CliOptions = {}): Promise<void> {
-  const env = options.env ?? process.env;
+  const env = options.env ?? loadEnvironment();
   const stdin = options.stdin ?? process.stdin;
   const configureNetworking = options.configureNetworking ?? configureNativeFetchNetworking;
   const makeTransport = options.createTransport ?? (() => new StdioServerTransport());

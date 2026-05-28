@@ -1,6 +1,64 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { loadConfig, loadGitHubConfig } from "../src/config.js";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { loadConfig, loadEnvironment, loadGitHubConfig } from "../src/config.js";
+
+let tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const tempDir of tempDirs) {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  tempDirs = [];
+});
+
+describe("loadEnvironment", () => {
+  it("loads supported variables from a dotenv file", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "hackmd-mcp-config-"));
+    tempDirs.push(tempDir);
+    const envFilePath = join(tempDir, ".env");
+    writeFileSync(
+      envFilePath,
+      [
+        "HACKMD_API_TOKEN=hackmd-token",
+        "HACKMD_API_URL=https://hackmd.example/v1/",
+        "GITHUB_TOKEN='github-token'",
+        'GITHUB_API_URL="https://github.example/api/v3/"',
+        "HACKMD_MCP_STATE_PATH=/tmp/hackmd-state.json",
+        "IGNORED_SECRET=do-not-load",
+      ].join("\n"),
+    );
+
+    expect(loadEnvironment({ env: {}, envFilePath })).toEqual({
+      HACKMD_API_TOKEN: "hackmd-token",
+      HACKMD_API_URL: "https://hackmd.example/v1/",
+      GITHUB_TOKEN: "github-token",
+      GITHUB_API_URL: "https://github.example/api/v3/",
+      HACKMD_MCP_STATE_PATH: "/tmp/hackmd-state.json",
+    });
+  });
+
+  it("keeps inherited environment variables ahead of dotenv values", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "hackmd-mcp-config-"));
+    tempDirs.push(tempDir);
+    const envFilePath = join(tempDir, ".env");
+    writeFileSync(envFilePath, "HACKMD_API_TOKEN=dotenv-token\nGITHUB_TOKEN=dotenv-github-token\n");
+
+    expect(
+      loadEnvironment({
+        env: { HACKMD_API_TOKEN: "inherited-token" },
+        envFilePath,
+      }),
+    ).toMatchObject({
+      HACKMD_API_TOKEN: "inherited-token",
+      GITHUB_TOKEN: "dotenv-github-token",
+    });
+  });
+});
 
 describe("loadConfig", () => {
   it("requires HACKMD_API_TOKEN", () => {

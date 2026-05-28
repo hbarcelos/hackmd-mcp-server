@@ -70,6 +70,8 @@ Optional environment variables:
 | `GITHUB_API_URL`        | No       | `https://api.github.com`                             | Override for GitHub Enterprise REST API deployments.               |
 | `HACKMD_MCP_STATE_PATH` | No       | `$XDG_STATE_HOME/hackmd-mcp-server/github-sync.json` | Override the local file used to remember GitHub sync state.        |
 
+The server also reads these supported variables from a `.env` file in its working directory when they are not already present in the inherited process environment. Inherited environment variables take precedence over `.env` values.
+
 ## Tools
 
 | Tool                                | Purpose                                                                          |
