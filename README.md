@@ -109,7 +109,7 @@ Omit `teamPath` for personal notes. Include `teamPath` to use team note endpoint
 - It refuses to sync directly to the repository default branch unless `allowDefaultBranch` is `true`.
 - It suggests a branch from the note title, such as `hackmd/release-plan-20260519`.
 - It suggests a Markdown filename from the note title, such as `release-plan.md`.
-- It does not include title or tags by default. Set `includeTitleTags` to `true` to add or merge YAML front matter with `title` and `tags`.
+- It includes or merges YAML front matter `title` by default, and includes `tags` only when the note has tags. Set `includeTitleTags` to `false` to write raw note content.
 - It creates or reuses an open pull request for the sync branch.
 
 First sync example:
@@ -121,7 +121,7 @@ First sync example:
 }
 ```
 
-Override branch, path, or front matter on the first sync:
+Override branch, path, or front matter behavior on the first sync:
 
 ```json
 {
@@ -129,7 +129,7 @@ Override branch, path, or front matter on the first sync:
   "repository": "owner/repo",
   "branch": "hackmd/release-notes",
   "filePath": "docs/release-notes.md",
-  "includeTitleTags": true
+  "includeTitleTags": false
 }
 ```
 
@@ -143,7 +143,7 @@ Re-sync remembers the repository, filename, initial branch, and PR in local stat
 
 On re-sync, the filename cannot be changed. Branch, base branch, and front matter options can still be overridden. If the previous PR was merged, the next re-sync keeps the original filename, creates a fresh branch from the default branch, and opens a new PR.
 
-To start from an existing GitHub Markdown file, use `hackmd_pull_github_file_to_hackmd`. It reads the file, parses YAML front matter `title` and `tags` into HackMD metadata, strips that front matter from the HackMD note body, creates a non-default future sync branch, and records the repo/path state for later re-syncs.
+To start from an existing GitHub Markdown file, use `hackmd_pull_github_file_to_hackmd`. It treats YAML front matter as the source of truth for HackMD metadata, derives and adds `title` front matter on the sync branch when the source file has none, strips front matter from the HackMD note body, creates a non-default future sync branch, and records the repo/path state for later re-syncs. It does not write metadata normalization back to the source/default branch.
 
 Create a new HackMD note from GitHub:
 

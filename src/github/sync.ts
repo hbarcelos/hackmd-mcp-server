@@ -71,7 +71,7 @@ export interface SyncDependencies {
 
 export interface PullDependencies {
   hackmd: Pick<HackMdClient, "createNote" | "updateNote">;
-  github: Pick<GitHubClient, "getRepository" | "getBranchRef" | "getFile" | "createBranch">;
+  github: Pick<GitHubClient, "getRepository" | "getBranchRef" | "getFile" | "createBranch" | "putFile">;
   syncStateStore: GitHubSyncStateStore;
   now?: () => Date;
 }
@@ -129,11 +129,12 @@ export async function syncNoteToGitHub(
     await dependencies.github.createBranch(repository, branch, baseRef.object.sha);
   }
 
+  const includeTitleTags = input.includeTitleTags ?? existingState?.includeTitleTags ?? true;
   const content = renderMarkdownForGitHubSync({
     content: note.content,
     title: note.title,
     tags: note.tags,
-    includeTitleTags: input.includeTitleTags ?? existingState?.includeTitleTags ?? false,
+    includeTitleTags,
   });
 
   const currentContent = decodeGitHubFileContent(targetFile);
@@ -181,7 +182,7 @@ export async function syncNoteToGitHub(
     initialBranch: existingState?.initialBranch ?? branch,
     activeBranch: branch,
     baseBranch,
-    includeTitleTags: input.includeTitleTags ?? existingState?.includeTitleTags,
+    includeTitleTags,
     sourceBranch: existingState?.sourceBranch,
     sourceSha: existingState?.sourceSha,
     pullRequestNumber: pullRequest?.number,
@@ -224,7 +225,7 @@ export async function pullGitHubFileToHackMd(
   }
   const content = decodeRequiredGitHubFile(file);
   const parsed = parseMarkdownForHackMdImport({ content, filePath: input.filePath });
-  const includeTitleTags = input.includeTitleTags ?? parsed.hadTitleTagsFrontmatter;
+  const includeTitleTags = input.includeTitleTags ?? true;
   const syncBranch = input.syncBranch ?? suggestBranch({ title: parsed.title }, dependencies.now);
 
   if (syncBranch === repo.default_branch || syncBranch === sourceBranch) {
@@ -234,16 +235,26 @@ export async function pullGitHubFileToHackMd(
   const noteId = input.noteId ?? (await createHackMdNoteFromGitHub(input, parsed, dependencies));
   if (input.noteId) {
     await dependencies.hackmd.updateNote({
-      teamPath: input.teamPath,
+      ...(input.teamPath ? { teamPath: input.teamPath } : {}),
       noteId,
       content: parsed.content,
       title: parsed.title,
-      tags: parsed.tags,
+      ...(parsed.tags ? { tags: parsed.tags } : {}),
     });
   }
 
   const baseRef = await dependencies.github.getBranchRef(input.repository, sourceBranch);
   await dependencies.github.createBranch(input.repository, syncBranch, baseRef.object.sha);
+  if (parsed.normalizedContent !== content) {
+    await dependencies.github.putFile({
+      repository: input.repository,
+      path: input.filePath,
+      branch: syncBranch,
+      content: parsed.normalizedContent,
+      message: `Normalize HackMD note metadata: ${parsed.title}`,
+      sha: file.sha,
+    });
+  }
 
   await dependencies.syncStateStore.set({
     key: makeSyncStateKey({ teamPath: input.teamPath, noteId }),
@@ -293,10 +304,10 @@ async function createHackMdNoteFromGitHub(
   dependencies: PullDependencies,
 ): Promise<string> {
   const created = await dependencies.hackmd.createNote({
-    teamPath: input.teamPath,
+    ...(input.teamPath ? { teamPath: input.teamPath } : {}),
     content: parsed.content,
     title: parsed.title,
-    tags: parsed.tags,
+    ...(parsed.tags ? { tags: parsed.tags } : {}),
     readPermission: input.readPermission,
     writePermission: input.writePermission,
   });

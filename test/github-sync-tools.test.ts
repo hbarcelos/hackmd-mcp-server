@@ -74,7 +74,7 @@ describe("GitHub sync tool handlers", () => {
       repository: "owner/repo",
       path: "release-plan.md",
       branch: "hackmd/release-plan-20260519",
-      content: "# Release Plan\n",
+      content: '---\ntitle: "Release Plan"\ntags:\n  - docs\n---\n\n# Release Plan\n',
       message: "Sync HackMD note: Release Plan",
       sha: undefined,
     });
@@ -93,6 +93,7 @@ describe("GitHub sync tool handlers", () => {
         filePath: "release-plan.md",
         initialBranch: "hackmd/release-plan-20260519",
         activeBranch: "hackmd/release-plan-20260519",
+        includeTitleTags: true,
         pullRequestNumber: 7,
       }),
     );
@@ -315,6 +316,14 @@ describe("GitHub sync tool handlers", () => {
       tags: ["docs"],
     });
     expect(spies.createBranch).toHaveBeenCalledWith("owner/repo", "hackmd/imported-note-20260519", "base-sha");
+    expect(spies.putFile).toHaveBeenCalledWith({
+      repository: "owner/repo",
+      path: "docs/imported.md",
+      branch: "hackmd/imported-note-20260519",
+      content: '---\ntitle: "Imported Note"\ntags:\n  - docs\n---\n\n# Imported\n',
+      message: "Normalize HackMD note metadata: Imported Note",
+      sha: "file-sha",
+    });
     expect(spies.storeSet).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "personal:new-note-id",
@@ -356,7 +365,7 @@ describe("GitHub sync tool handlers", () => {
     expect(spies.updateNote).not.toHaveBeenCalled();
   });
 
-  it("updates an existing HackMD note from GitHub when overwrite is confirmed", async () => {
+  it("updates an existing HackMD note from GitHub metadata when overwrite is confirmed", async () => {
     const { hackmd, github, store, spies } = makeClients();
     spies.getFile.mockResolvedValue({
       sha: "file-sha",
@@ -376,8 +385,15 @@ describe("GitHub sync tool handlers", () => {
     expect(spies.updateNote).toHaveBeenCalledWith({
       noteId: "note-1",
       content: "# Imported\n",
-      title: "imported",
-      tags: undefined,
+      title: "Imported",
+    });
+    expect(spies.putFile).toHaveBeenCalledWith({
+      repository: "owner/repo",
+      path: "docs/imported.md",
+      branch: "hackmd/imported-20260519",
+      content: "---\ntitle: Imported\n---\n\n# Imported\n",
+      message: "Normalize HackMD note metadata: Imported",
+      sha: "file-sha",
     });
     expect(spies.storeSet).toHaveBeenCalledWith(expect.objectContaining({ key: "personal:note-1" }));
   });
@@ -428,7 +444,7 @@ describe("GitHub sync tool handlers", () => {
 
     expect(spies.putFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: "---\ntitle: Release Plan\ntags:\n  - docs\n---\n\n# Release Plan\n",
+        content: '---\ntitle: "Release Plan"\ntags:\n  - docs\n---\n\n# Release Plan\n',
       }),
     );
   });
