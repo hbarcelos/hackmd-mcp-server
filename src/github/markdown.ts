@@ -55,7 +55,8 @@ export function parseMarkdownForHackMdImport(input: ParseMarkdownForHackMdImport
 
 export function normalizeMarkdownForHackMdImport(input: ParseMarkdownForHackMdImportInput): string {
   const parsed = parseFrontmatter(input.content);
-  const title = scalarValue(parsed.metadata.title) ?? titleFromHeading(parsed.body) ?? titleFromFilePath(input.filePath);
+  const title =
+    scalarValue(parsed.metadata.title) ?? titleFromHeading(parsed.body) ?? titleFromFilePath(input.filePath);
   const tags = arrayValue(parsed.metadata.tags);
   const metadata = {
     ...parsed.metadata,

@@ -71,6 +71,28 @@ describe("HackMdClient", () => {
     });
   });
 
+  it("uses personal folder endpoints when no team path is provided", async () => {
+    fetchMock.mockResolvedValue(jsonResponse([{ id: "folder-1" }]));
+
+    await client.listFolders();
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/folders", {
+      method: "GET",
+      headers: { Authorization: "Bearer secret" },
+    });
+  });
+
+  it("uses team folder endpoints when a team path is provided", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: "folder-1" }));
+
+    await client.getFolder({ teamPath: "team/space", folderId: "folder 1" });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/teams/team%2Fspace/folders/folder%201", {
+      method: "GET",
+      headers: { Authorization: "Bearer secret" },
+    });
+  });
+
   it("serializes note creation bodies", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: "note-1" }));
 
@@ -114,6 +136,62 @@ describe("HackMdClient", () => {
       body: JSON.stringify({
         content: "updated",
         writePermission: "owner",
+      }),
+    });
+  });
+
+  it("serializes folder creation bodies", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: "folder-1" }));
+
+    await client.createFolder({
+      teamPath: "team",
+      name: "Runbooks",
+      description: "Operational docs",
+      icon: "book",
+      color: "#3366ff",
+      parentFolderId: "parent-1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/teams/team/folders", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer secret",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Runbooks",
+        description: "Operational docs",
+        icon: "book",
+        color: "#3366ff",
+        parentFolderId: "parent-1",
+      }),
+    });
+  });
+
+  it("serializes folder update bodies with nullable fields", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: "folder-1" }));
+
+    await client.updateFolder({
+      folderId: "folder-1",
+      name: "Archive",
+      description: null,
+      icon: null,
+      color: null,
+      parentFolderId: null,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example/v1/folders/folder-1", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer secret",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Archive",
+        description: null,
+        icon: null,
+        color: null,
+        parentFolderId: null,
       }),
     });
   });

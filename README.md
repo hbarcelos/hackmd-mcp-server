@@ -11,6 +11,7 @@ This server exposes a small, focused HackMD toolset over stdio. It is designed f
 - Read a note by ID.
 - Create new notes.
 - Update note content and metadata.
+- List, create, and update folders.
 - Work with team workspaces by passing `teamPath`.
 - Keep credentials local through environment variables.
 
@@ -81,6 +82,10 @@ The server also reads these supported variables from a `.env` file in its workin
 | `hackmd_get_note`                   | Read one note by `noteId`.                                                       |
 | `hackmd_create_note`                | Create a personal or team note.                                                  |
 | `hackmd_update_note`                | Update note content, title, tags, permissions, folder, or permalink.             |
+| `hackmd_list_folders`               | List personal folders, or team folders when `teamPath` is provided.              |
+| `hackmd_get_folder`                 | Read one folder by `folderId`.                                                   |
+| `hackmd_create_folder`              | Create a personal or team folder.                                                |
+| `hackmd_update_folder`              | Update folder name, description, icon, color, or parent folder.                  |
 | `hackmd_sync_note_to_github`        | Sync current note content to a GitHub branch and pull request.                   |
 | `hackmd_pull_github_file_to_hackmd` | Create or update a HackMD note from a GitHub Markdown file and start sync state. |
 | `hackmd_github_sync_status`         | Read remembered local GitHub sync state for a note.                              |
@@ -95,11 +100,68 @@ Common inputs:
   "content": "# Release notes\n\nDraft text...",
   "tags": ["release", "draft"],
   "readPermission": "guest",
-  "writePermission": "owner"
+  "writePermission": "owner",
+  "parentFolderId": "folder-uuid"
 }
 ```
 
 Omit `teamPath` for personal notes. Include `teamPath` to use team note endpoints.
+
+### Folders
+
+Folders are available for both personal and team workspaces. Use `hackmd_list_folders` to discover folder IDs:
+
+```json
+{}
+```
+
+For team folders:
+
+```json
+{
+  "teamPath": "my-team"
+}
+```
+
+Create a folder:
+
+```json
+{
+  "name": "Runbooks",
+  "description": "Operational Markdown docs",
+  "icon": "book",
+  "color": "#3366ff"
+}
+```
+
+Create a nested folder by passing the parent folder ID:
+
+```json
+{
+  "name": "Incidents",
+  "parentFolderId": "parent-folder-uuid"
+}
+```
+
+Move a note into a folder with `hackmd_update_note`:
+
+```json
+{
+  "noteId": "abc123",
+  "parentFolderId": "folder-uuid"
+}
+```
+
+Move a folder or clear optional folder metadata with `hackmd_update_folder`:
+
+```json
+{
+  "folderId": "folder-uuid",
+  "name": "Archived runbooks",
+  "description": null,
+  "parentFolderId": null
+}
+```
 
 ### GitHub sync
 
@@ -381,6 +443,12 @@ For team notes:
 
 ```text
 List notes in the HackMD team workspace "my-team".
+```
+
+For folders:
+
+```text
+Create a HackMD folder named "Project SOPs" and move note abc123 into it.
 ```
 
 For GitHub sync:

@@ -2,14 +2,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import packageJson from "../package.json" with { type: "json" };
 import {
+  createFolderSchema,
   createNoteSchema,
+  getFolderSchema,
   getNoteSchema,
   githubSyncStatusSchema,
+  listFoldersSchema,
   listNotesSchema,
   profileSchema,
   pullGitHubFileToHackMdSchema,
   syncNoteToGitHubSchema,
   toolHandlers,
+  updateFolderSchema,
   updateNoteSchema,
 } from "./tools/notes.js";
 
@@ -73,6 +77,46 @@ export function createServer(client: HackMdClient): McpServer {
   );
 
   server.registerTool(
+    "hackmd_list_folders",
+    {
+      title: "List HackMD Folders",
+      description: "List personal HackMD folders, or team folders when teamPath is provided.",
+      inputSchema: listFoldersSchema.shape,
+    },
+    handlers.hackmdListFolders,
+  );
+
+  server.registerTool(
+    "hackmd_get_folder",
+    {
+      title: "Get HackMD Folder",
+      description: "Read one HackMD folder by folderId, optionally from a team workspace.",
+      inputSchema: getFolderSchema.shape,
+    },
+    handlers.hackmdGetFolder,
+  );
+
+  server.registerTool(
+    "hackmd_create_folder",
+    {
+      title: "Create HackMD Folder",
+      description: "Create a personal HackMD folder, or a team folder when teamPath is provided.",
+      inputSchema: createFolderSchema.shape,
+    },
+    handlers.hackmdCreateFolder,
+  );
+
+  server.registerTool(
+    "hackmd_update_folder",
+    {
+      title: "Update HackMD Folder",
+      description: "Update folder name, description, icon, color, or parent folder.",
+      inputSchema: updateFolderSchema,
+    },
+    handlers.hackmdUpdateFolder,
+  );
+
+  server.registerTool(
     "hackmd_sync_note_to_github",
     {
       title: "Sync HackMD Note to GitHub",
@@ -127,11 +171,15 @@ export type {
 export type { GitHubSyncState, GitHubSyncStateStore } from "./github/sync-state.js";
 export type {
   CommentPermissionType,
+  CreateFolderInput,
   CreateNoteInput,
+  FolderSelector,
   HackMdClientOptions,
+  ListFoldersInput,
   ListNotesInput,
   NotePermissionRole,
   NoteSelector,
   SuggestEditPermissionType,
+  UpdateFolderInput,
   UpdateNoteInput,
 } from "./hackmd/client.js";

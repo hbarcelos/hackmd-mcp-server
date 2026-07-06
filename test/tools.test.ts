@@ -2,14 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import { HackMdClient } from "../src/hackmd/client.js";
 import {
+  createFolderSchema,
   createNoteSchema,
+  getFolderSchema,
   getNoteSchema,
+  listFoldersSchema,
   listNotesSchema,
   profileSchema,
   pullGitHubFileToHackMdSchema,
   syncNoteToGitHubSchema,
   toTextResult,
   toolHandlers,
+  updateFolderSchema,
   updateNoteSchema,
 } from "../src/tools/notes.js";
 
@@ -33,6 +37,24 @@ describe("note tool schemas", () => {
       noteId: "note-1",
       title: "Updated",
     });
+  });
+
+  it("validates folder inputs", () => {
+    expect(listFoldersSchema.parse({})).toEqual({});
+    expect(getFolderSchema.parse({ folderId: "folder-1" })).toEqual({ folderId: "folder-1" });
+    expect(createFolderSchema.parse({ name: "Runbooks", parentFolderId: "parent-1" })).toEqual({
+      name: "Runbooks",
+      parentFolderId: "parent-1",
+    });
+    expect(updateFolderSchema.parse({ folderId: "folder-1", parentFolderId: null })).toEqual({
+      folderId: "folder-1",
+      parentFolderId: null,
+    });
+
+    expect(() => getFolderSchema.parse({})).toThrow();
+    expect(() => createFolderSchema.parse({})).toThrow();
+    expect(() => updateFolderSchema.parse({ folderId: "folder-1" })).toThrow();
+    expect(() => updateFolderSchema.parse({ folderId: "folder-1", teamPath: "team" })).toThrow();
   });
 
   it("allows GitHub re-sync inputs without repository", () => {
@@ -73,6 +95,10 @@ describe("toolHandlers", () => {
     vi.spyOn(client, "getNote").mockResolvedValue({ id: "note-1", content: "body" });
     vi.spyOn(client, "createNote").mockResolvedValue({ id: "note-2" });
     vi.spyOn(client, "updateNote").mockResolvedValue({ id: "note-1", content: "new" });
+    vi.spyOn(client, "listFolders").mockResolvedValue([{ id: "folder-1" }]);
+    vi.spyOn(client, "getFolder").mockResolvedValue({ id: "folder-1", name: "Runbooks" });
+    vi.spyOn(client, "createFolder").mockResolvedValue({ id: "folder-2" });
+    vi.spyOn(client, "updateFolder").mockResolvedValue({ id: "folder-1", name: "Archive" });
 
     const handlers = toolHandlers(client);
 
@@ -84,6 +110,18 @@ describe("toolHandlers", () => {
     });
     await expect(handlers.hackmdCreateNote({ content: "body", title: "Title" })).resolves.toEqual({
       content: [{ type: "text", text: JSON.stringify({ id: "note-2" }, null, 2) }],
+    });
+    await expect(handlers.hackmdListFolders({})).resolves.toEqual({
+      content: [{ type: "text", text: JSON.stringify([{ id: "folder-1" }], null, 2) }],
+    });
+    await expect(handlers.hackmdGetFolder({ folderId: "folder-1" })).resolves.toEqual({
+      content: [{ type: "text", text: JSON.stringify({ id: "folder-1", name: "Runbooks" }, null, 2) }],
+    });
+    await expect(handlers.hackmdCreateFolder({ name: "Runbooks" })).resolves.toEqual({
+      content: [{ type: "text", text: JSON.stringify({ id: "folder-2" }, null, 2) }],
+    });
+    await expect(handlers.hackmdUpdateFolder({ folderId: "folder-1", name: "Archive" })).resolves.toEqual({
+      content: [{ type: "text", text: JSON.stringify({ id: "folder-1", name: "Archive" }, null, 2) }],
     });
   });
 

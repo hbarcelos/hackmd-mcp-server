@@ -15,6 +15,34 @@ export interface ListNotesInput {
   teamPath?: string;
 }
 
+export interface FolderSelector {
+  teamPath?: string;
+  folderId: string;
+}
+
+export interface ListFoldersInput {
+  teamPath?: string;
+}
+
+export interface CreateFolderInput {
+  teamPath?: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  parentFolderId?: string;
+}
+
+export interface UpdateFolderInput {
+  teamPath?: string;
+  folderId: string;
+  name?: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  parentFolderId?: string | null;
+}
+
 export interface CreateNoteInput {
   teamPath?: string;
   title?: string;
@@ -108,12 +136,46 @@ export class HackMdClient {
     });
   }
 
+  async listFolders(input: ListFoldersInput = {}): Promise<unknown> {
+    return this.request(this.foldersPath(input.teamPath));
+  }
+
+  async getFolder(input: FolderSelector): Promise<unknown> {
+    return this.request(`${this.foldersPath(input.teamPath)}/${encodePathSegment(input.folderId)}`);
+  }
+
+  async createFolder(input: CreateFolderInput): Promise<unknown> {
+    const { teamPath, ...body } = input;
+
+    return this.request(this.foldersPath(teamPath), {
+      method: "POST",
+      body,
+    });
+  }
+
+  async updateFolder(input: UpdateFolderInput): Promise<unknown> {
+    const { teamPath, folderId, ...body } = input;
+
+    return this.request(`${this.foldersPath(teamPath)}/${encodePathSegment(folderId)}`, {
+      method: "PATCH",
+      body,
+    });
+  }
+
   private notesPath(teamPath?: string): string {
     if (teamPath) {
       return `/teams/${encodePathSegment(teamPath)}/notes`;
     }
 
     return "/notes";
+  }
+
+  private foldersPath(teamPath?: string): string {
+    if (teamPath) {
+      return `/teams/${encodePathSegment(teamPath)}/folders`;
+    }
+
+    return "/folders";
   }
 
   private async request(

@@ -45,4 +45,29 @@ describe("package root exports", () => {
       await server.close();
     }
   });
+
+  it("registers folder tools", async () => {
+    const server = createServer(new HackMdClient({ apiToken: "token", apiUrl: "https://api.hackmd.io/v1" }));
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+
+    try {
+      await client.connect(clientTransport);
+      const { tools } = await client.listTools();
+
+      expect(tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining([
+          "hackmd_list_folders",
+          "hackmd_get_folder",
+          "hackmd_create_folder",
+          "hackmd_update_folder",
+        ]),
+      );
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 });

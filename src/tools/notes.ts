@@ -21,6 +21,7 @@ const updateNoteFields = [
   "parentFolderId",
   "permalink",
 ] as const;
+const updateFolderFields = ["name", "description", "icon", "color", "parentFolderId"] as const;
 
 export const profileSchema = z.object({}).strict();
 
@@ -30,10 +31,23 @@ export const listNotesSchema = z
   })
   .strict();
 
+export const listFoldersSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+  })
+  .strict();
+
 export const getNoteSchema = z
   .object({
     teamPath: z.string().min(1).optional(),
     noteId: z.string().min(1),
+  })
+  .strict();
+
+export const getFolderSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+    folderId: z.string().min(1),
   })
   .strict();
 
@@ -69,6 +83,32 @@ export const updateNoteSchema = z
   .strict()
   .refine((input) => updateNoteFields.some((field) => input[field] !== undefined), {
     message: "At least one note field must be provided to update.",
+  });
+
+export const createFolderSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+    name: z.string().min(1),
+    description: z.string().optional(),
+    icon: z.string().optional(),
+    color: z.string().optional(),
+    parentFolderId: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const updateFolderSchema = z
+  .object({
+    teamPath: z.string().min(1).optional(),
+    folderId: z.string().min(1),
+    name: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    icon: z.string().nullable().optional(),
+    color: z.string().nullable().optional(),
+    parentFolderId: z.string().min(1).nullable().optional(),
+  })
+  .strict()
+  .refine((input) => updateFolderFields.some((field) => input[field] !== undefined), {
+    message: "At least one folder field must be provided to update.",
   });
 
 export const syncNoteToGitHubSchema = z
@@ -144,6 +184,18 @@ export function toolHandlers(client: HackMdClient, options: ToolHandlerOptions =
 
     hackmdUpdateNote: async (input: z.infer<typeof updateNoteSchema>): Promise<ToolResult> =>
       toTextResult(await client.updateNote(input)),
+
+    hackmdListFolders: async (input: z.infer<typeof listFoldersSchema>): Promise<ToolResult> =>
+      toTextResult(await client.listFolders(input)),
+
+    hackmdGetFolder: async (input: z.infer<typeof getFolderSchema>): Promise<ToolResult> =>
+      toTextResult(await client.getFolder(input)),
+
+    hackmdCreateFolder: async (input: z.infer<typeof createFolderSchema>): Promise<ToolResult> =>
+      toTextResult(await client.createFolder(input)),
+
+    hackmdUpdateFolder: async (input: z.infer<typeof updateFolderSchema>): Promise<ToolResult> =>
+      toTextResult(await client.updateFolder(input)),
 
     hackmdSyncNoteToGitHub: async (input: z.infer<typeof syncNoteToGitHubSchema>): Promise<ToolResult> =>
       toTextResult(
